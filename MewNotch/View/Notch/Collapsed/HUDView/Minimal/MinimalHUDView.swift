@@ -21,26 +21,24 @@ struct MinimalHUDView<Content: View>: View {
     var content: () -> Content
     
     var body: some View {
-        content()
-            .padding(notchViewModel.minimalHUDPadding)
-            .frame(
-                width: notchViewModel.notchSize.height,
-                height: notchViewModel.notchSize.height
-            )
+        let pad = notchViewModel.minimalHUDPadding
+        let box = notchViewModel.notchSize.height
+        let extra = notchViewModel.extraNotchPadSize.width / 2 + 6
+        let isLeft = (variant == .left)
+        
+        return content()
+            .padding(pad)
+            .frame(width: box, height: box)
             .transition(
-                .move(
-                    edge: variant == .left ? .trailing : .leading
-                )
-                .combined(
-                    with: .opacity
-                )
+                .move(edge: isLeft ? .trailing : .leading)
+                    .combined(with: .opacity)
             )
             .padding(
                 .init(
                     top: 0,
-                    leading: notchViewModel.extraNotchPadSize.width / 2 * (variant == .left ? 1 : -1),
+                    leading: extra * (isLeft ? 1 : -1),
                     bottom: 0,
-                    trailing: notchViewModel.extraNotchPadSize.width / 2 * (variant == .left ? -1 : 1)
+                    trailing: extra * (isLeft ? -1 : 1)
                 )
             )
     }

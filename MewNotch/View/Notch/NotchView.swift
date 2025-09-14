@@ -14,8 +14,11 @@ struct NotchView: View {
     @Environment(\.openSettings) private var openSettings
     
     @StateObject var notchDefaults = NotchDefaults.shared
-    
+
+    @StateObject var notchManager = NotchManager.shared
+
     @StateObject var notchViewModel: NotchViewModel
+    @StateObject var collapsedNotchViewModel: CollapsedNotchViewModel = .init()
     
     @State var isExpanded: Bool = false
     
@@ -31,7 +34,7 @@ struct NotchView: View {
     
     var body: some View {
         VStack {
-            HStack {
+            HStack(spacing: 0) {
                 Spacer()
                 
                 ZStack(
@@ -39,15 +42,16 @@ struct NotchView: View {
                 ) {
                     let collapsedNotchView = CollapsedNotchView(
                         namespace: namespace,
-                        notchViewModel: notchViewModel
+                        notchViewModel: notchViewModel,
+                        collapsedNotchViewModel: collapsedNotchViewModel
                     )
-                    
+
                     ExpandedNotchView(
                         namespace: namespace,
                         notchViewModel: notchViewModel,
                         collapsedNotchView: collapsedNotchView
                     )
-                    
+
                     collapsedNotchView
                 }
                 .background {
@@ -69,7 +73,7 @@ struct NotchView: View {
                 .onHover {
                     notchViewModel.onHover(
                         $0,
-                        shouldExpand: notchDefaults.expandOnHover
+                        shouldExpand: true
                     )
                 }
                 .onTapGesture(
@@ -85,5 +89,11 @@ struct NotchView: View {
         .contextMenu {
             NotchOptionsView()
         }
+        .opacity(shouldHideOnLock ? 0 : 1)
+        .animation(.easeInOut(duration: 0.3), value: shouldHideOnLock)
+    }
+
+    private var shouldHideOnLock: Bool {
+        notchManager.isScreenLocked && !notchDefaults.shownOnLockScreen
     }
 }

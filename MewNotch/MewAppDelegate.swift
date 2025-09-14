@@ -37,6 +37,7 @@ class MewAppDelegate: NSObject, NSApplicationDelegate {
         Brightness.sharedInstance()
         PowerStatus.sharedInstance()
         NowPlaying.sharedInstance()
+        BrowserVideoProbe.shared.start()
         
         NotchManager.shared.refreshNotches()
         

@@ -13,4 +13,5 @@ enum HUDStyle: String, CaseIterable, Identifiable, Codable {
     case Minimal
     case Progress
     case Notched
+    case Island
 }

@@ -8,13 +8,13 @@
 import SwiftUI
 
 struct ExpandedNotchView: View {
-    
+
     var namespace: Namespace.ID
-    
+
     @Namespace private var nilNamespace
-    
+
     @StateObject private var notchDefaults = NotchDefaults.shared
-    
+
     @ObservedObject var notchViewModel: NotchViewModel
     
     var collapsedNotchView: CollapsedNotchView
@@ -37,43 +37,51 @@ struct ExpandedNotchView: View {
                 )
             }
             
-            HStack(
-                spacing: 12
-            ) {
+            VStack(spacing: 12) {
                 let items = Array(
                     notchDefaults.expandedNotchItems.sorted {
                         $0.rawValue < $1.rawValue
                     }
                 )
-                
-                ForEach(
-                    0..<items.count,
-                    id: \.self
-                ) { index in
-                    
-                    let item = items[index]
-                    
-                    switch item {
-                    case .Mirror:
-                        MirrorView(
-                            notchViewModel: notchViewModel
-                        )
-                    case .NowPlaying:
-                        NowPlayingDetailView(
-                            namespace: namespace,
-                            notchViewModel: notchViewModel,
-                            nowPlayingModel: expandedNotchViewModel.nowPlayingMedia ?? .Placeholder
-                        )
+
+                if items.isEmpty {
+                    if notchDefaults.showClipboardBuffer {
+                        ClipboardBufferView()
+                            .transition(.opacity.combined(with: .scale))
                     }
-                    
-                    if notchDefaults.showDividers && index != items.count - 1 {
-                        Divider()
+                } else {
+                    HStack(
+                        spacing: 12
+                    ) {
+                        ForEach(
+                            0..<items.count,
+                            id: \.self
+                        ) { index in
+
+                            let item = items[index]
+
+                            switch item {
+                            case .Mirror:
+                                MirrorView(
+                                    notchViewModel: notchViewModel
+                                )
+                            }
+
+                            if notchDefaults.showDividers && index != items.count - 1 {
+                                Divider()
+                            }
+                        }
+                    }
+                    .frame(
+                        height: notchViewModel.notchSize.height * 2
+                    )
+
+                    if notchDefaults.showClipboardBuffer {
+                        ClipboardBufferView()
+                            .transition(.opacity.combined(with: .scale))
                     }
                 }
             }
-            .frame(
-                height: notchViewModel.notchSize.height * 3
-            )
         }
         .padding(
             .init(
@@ -84,7 +92,7 @@ struct ExpandedNotchView: View {
             )
         )
         .offset(
-            y: notchViewModel.isExpanded ? 0 : -notchViewModel.notchSize.height * 3
+            y: notchViewModel.isExpanded ? 0 : -notchViewModel.notchSize.height * 2
         )
         .frame(
             width: notchViewModel.isExpanded ? nil : 0,

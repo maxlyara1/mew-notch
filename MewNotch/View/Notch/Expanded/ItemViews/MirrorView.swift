@@ -105,7 +105,7 @@ struct MirrorView: View {
             Circle()
         )
         .frame(
-            width: notchViewModel.notchSize.height * 3
+            width: notchViewModel.notchSize.height * 2
         )
         .onTapGesture {
             if cameraAuthStatus == .authorized {

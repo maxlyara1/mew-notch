@@ -37,7 +37,6 @@
 - **Sound Device** - Shows current input/output device on notch, when changed.
 - **Power State** - Show current power source as well as left time on battery when available.
 - **Notch on Lock Screen** - The notch HUD is now visible even on the macOS lock screen.
-- ~~**Now Playing** -  Control now playing media directly from notch. Expand notch for additional controls.~~ <br> _Not Working on macOS 15.4 and above_
 - **Mirror** - Get a quick peek on how you're looking by using the mirror in expanded notch.
 - **Minimal & Non-Intrusive** - A clean, lightweight alternative to the default system HUD.
 - **Fully Custom Notch Experience** - Choose the displays you want to see the notch on.
@@ -71,15 +70,11 @@
 - [x] ~~Allow users to toggle usage of each HUD variant.~~
 - [x] ~~Icon in Menu bar to show app's running status.~~
 - [x] ~~Add Touch bar support.~~
-- [x] ~~Now playing music HUD.~~
-- [x] ~~Actions on Now Playing HUD. Hover to see magic.~~
-- [x] ~~Now Playing Detail on Expanded Notch View.~~
 - [x] ~~Expand notch on hover.~~
 - [x] ~~Mirror View~~
 - [x] ~~Complete Control over which monitor shows the notch~~
 - [ ] HUD for displaying keyboard backlight changes.
 - [ ] Shelf for files in expanded notch view.
-- [ ] Explore different options for Now Playing media support on macOS 15.4 and above.
 - [ ] Explore additional notch-based utilities.
 
 ## Dependency

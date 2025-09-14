@@ -16,6 +16,10 @@ struct HUDPropertyModel {
     var name: String
     var value: Float
     
+    // For video HUD
+    var elapsed: Double?
+    var duration: Double?
+    
     var timeout: TimeInterval = 1
     var timer: Timer? = nil
     

@@ -22,9 +22,9 @@ struct MewSettingsView: View {
         case Audio
 //        case AudioOutput
 //        case AudioInput
-        
-        case Media
+
         case Power
+        case Video
         
         case About
     }
@@ -114,18 +114,18 @@ struct MewSettingsView: View {
                                 )
                             }
                             .id(SettingsPages.Power)
-                            
+
                             NavigationLink(
                                 destination: {
-                                    HUDMediaSettingsView()
+                                    HUDVideoSettingsView()
                                 }
                             ) {
                                 Label(
-                                    "Media",
-                                    systemImage: "music.note.list"
+                                    "Video",
+                                    systemImage: "play.rectangle"
                                 )
                             }
-                            .id(SettingsPages.Media)
+                            .id(SettingsPages.Video)
                         },
                         header: {
                             Text("HUD")

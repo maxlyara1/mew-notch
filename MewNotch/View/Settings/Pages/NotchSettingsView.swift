@@ -208,6 +208,26 @@ struct NotchSettingsView: View {
                     Text("Expanded Notch Items")
                 }
             )
+
+            Section(
+                content: {
+                    Toggle(
+                        isOn: $notchDefaults.showClipboardBuffer
+                    ) {
+                        VStack(
+                            alignment: .leading
+                        ) {
+                            Text("Clipboard Buffer")
+
+                            Text("Show a buffer for up to 3 images with drag-and-drop support")
+                                .font(.footnote)
+                        }
+                    }
+                },
+                header: {
+                    Text("Clipboard Buffer")
+                }
+            )
         }
         .formStyle(.grouped)
         .navigationTitle("Notch")

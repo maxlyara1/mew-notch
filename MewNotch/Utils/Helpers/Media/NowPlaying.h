@@ -1,40 +1,29 @@
-/**
- * @file NowPlaying.h
- *
- * @copyright 2018-2019 Bill Zissimopoulos
- */
-/*
- * This file is part of EnergyBar.
- *
- * You can redistribute it and/or modify it under the terms of the GNU
- * General Public License version 3 as published by the Free Software
- * Foundation.
- */
+//
+//  NowPlaying.h
+//  MewNotch
+//
+//  Created by MewNotch Team on 14/09/25.
+//
 
 #import <Cocoa/Cocoa.h>
 
+NS_ASSUME_NONNULL_BEGIN
+
 @interface NowPlaying : NSObject
+
 + (NowPlaying *)sharedInstance;
-@property (retain) NSString *appBundleIdentifier;
-@property (retain) NSString *appName;
-@property (retain) NSImage *appIcon;
 
-@property (retain) NSImage *albumArt;
+// Current values (updated periodically)
+@property (atomic, readonly) double elapsedTime;
+@property (atomic, readonly) double duration;
+@property (atomic, readonly) BOOL isPlaying;
+@property (atomic, readonly) BOOL isVideo;
+@property (atomic, copy, readonly) NSString * _Nullable clientBundleIdentifier;
 
-@property (retain) NSString *album;
-@property (retain) NSString *artist;
-@property (retain) NSString *title;
-
-@property (retain) NSNumber *totalDuration;
-@property (retain) NSNumber *elapsedTime;
-
-@property (retain) NSNumber *playbackRate;
-@property (retain) NSDate *refreshedAt;
-
-@property (assign) BOOL playing;
-
-- (void)updateInfo;
 @end
 
-extern NSString *NowPlayingInfoNotification;
-extern NSString *NowPlayingStateNotification;
+extern NSString *NowPlayingNotification;
+
+NS_ASSUME_NONNULL_END
+
+

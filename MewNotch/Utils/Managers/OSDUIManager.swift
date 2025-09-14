@@ -80,6 +80,9 @@ class OSDUIManager {
         )
         
         registerForSleepWakeNotifications()
+
+        // Keep MediaRemote alive by touching NowPlaying singleton once
+        _ = NowPlaying.sharedInstance();
         
         NSWorkspace.shared.notificationCenter.addObserver(
             self,

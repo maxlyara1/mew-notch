@@ -86,4 +86,14 @@ class NotchDefaults: ObservableObject {
             self.objectWillChange.send()
         }
     }
+
+    @PrimitiveUserDefault(
+        PREFIX + "ShowClipboardBuffer",
+        defaultValue: true
+    )
+    var showClipboardBuffer: Bool {
+        didSet {
+            self.objectWillChange.send()
+        }
+    }
 }

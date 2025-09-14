@@ -1,66 +1,49 @@
-/**
- * @file NowPlaying.m
- *
- * @copyright 2018-2019 Bill Zissimopoulos
- */
-/*
- * This file is part of EnergyBar.
- *
- * You can redistribute it and/or modify it under the terms of the GNU
- * General Public License version 3 as published by the Free Software
- * Foundation.
- */
+//
+//  NowPlaying.m
+//  MewNotch
+//
+//  Created by MewNotch Team on 14/09/25.
+//
 
 #import "NowPlaying.h"
+#import <dlfcn.h>
 
-typedef void (^MRMediaRemoteGetNowPlayingInfoBlock)(NSDictionary *info);
-typedef void (^MRMediaRemoteGetNowPlayingClientBlock)(id clientObj);
-typedef void (^MRMediaRemoteGetNowPlayingApplicationIsPlayingBlock)(BOOL playing);
+NSString *NowPlayingNotification = @"NowPlaying";
 
-void MRMediaRemoteRegisterForNowPlayingNotifications(dispatch_queue_t queue);
-void MRMediaRemoteGetNowPlayingClient(dispatch_queue_t queue,
-    MRMediaRemoteGetNowPlayingClientBlock block);
-void MRMediaRemoteGetNowPlayingInfo(dispatch_queue_t queue,
-    MRMediaRemoteGetNowPlayingInfoBlock block);
-void MRMediaRemoteGetNowPlayingApplicationIsPlaying(dispatch_queue_t queue,
-    MRMediaRemoteGetNowPlayingApplicationIsPlayingBlock block);
-NSString *MRNowPlayingClientGetBundleIdentifier(id clientObj);
-NSString *MRNowPlayingClientGetParentAppBundleIdentifier(id clientObj);
+@interface NowPlaying ()
+@property (atomic, readwrite) double elapsedTime;
+@property (atomic, readwrite) double duration;
+@property (atomic, readwrite) BOOL isPlaying;
+@property (atomic, readwrite) BOOL isVideo;
+@property (atomic, copy, readwrite) NSString * clientBundleIdentifier;
+@property (nonatomic, strong) NSTimer * timer;
+@end
 
-extern NSString *kMRMediaRemoteNowPlayingApplicationIsPlayingDidChangeNotification;
+// Minimal MediaRemote private API bridge (weak linked via dlsym)
+typedef void (*MRMediaRemoteGetNowPlayingInfo_f)(dispatch_queue_t, void (^)(CFDictionaryRef));
+typedef void (*MRMediaRemoteRegisterForNowPlayingNotifications_f)(dispatch_queue_t);
+typedef id (*MRMediaRemoteCopyNowPlayingClient_f)(void);
 
-extern NSString *kMRMediaRemoteNowPlayingApplicationClientStateDidChange;
+static MRMediaRemoteGetNowPlayingInfo_f MRMediaRemoteGetNowPlayingInfo_ptr;
+static MRMediaRemoteRegisterForNowPlayingNotifications_f MRMediaRemoteRegisterForNowPlayingNotifications_ptr;
+static MRMediaRemoteCopyNowPlayingClient_f MRMediaRemoteCopyNowPlayingClient_ptr;
 
-extern NSString *kMRNowPlayingPlaybackQueueChangedNotification;
-extern NSString *kMRPlaybackQueueContentItemsChangedNotification;
-extern NSString *kMRPlaybackQueueContentItemArtworkChangedNotification;
-extern NSString *kMRMediaRemoteNowPlayingApplicationDidChangeNotification;
-
-
-extern NSString *kMRMediaRemoteNowPlayingInfoAlbum;
-extern NSString *kMRMediaRemoteNowPlayingInfoArtist;
-extern NSString *kMRMediaRemoteNowPlayingInfoTitle;
-
-extern NSString *kMRMediaRemoteNowPlayingInfoArtworkData;
-
-extern NSString *kMRMediaRemoteNowPlayingInfoDuration;
-extern NSString *kMRMediaRemoteNowPlayingInfoElapsedTime;
-extern NSString *kMRMediaRemoteNowPlayingInfoPlaybackRate;
-
-extern NSString *kMRMediaRemoteNowPlayingInfoTimestamp;
+// CFString keys from MediaRemote (resolved via dlsym)
+static CFStringRef kElapsedKey;
+static CFStringRef kDurationKey;
+static CFStringRef kPlaybackRateKey;
+static CFStringRef kMediaTypeKey;
+static CFStringRef kSupportsVideoKey;
 
 @implementation NowPlaying
-+ (void)load
-{
-    MRMediaRemoteRegisterForNowPlayingNotifications(dispatch_get_main_queue());
-    
-}
 
 + (NowPlaying *)sharedInstance
 {
     static NowPlaying *instance = 0;
-    if (0 == instance)
+    static dispatch_once_t onceToken;
+    dispatch_once(&onceToken, ^{
         instance = [[NowPlaying alloc] init];
+    });
     return instance;
 }
 
@@ -70,166 +53,127 @@ extern NSString *kMRMediaRemoteNowPlayingInfoTimestamp;
     if (nil == self)
         return nil;
 
-    [[NSNotificationCenter defaultCenter]
-        addObserver:self
-        selector:@selector(appDidChange:)
-        name:kMRMediaRemoteNowPlayingApplicationDidChangeNotification
-        object:nil];
-    [[NSNotificationCenter defaultCenter]
-        addObserver:self
-        selector:@selector(infoDidChange:)
-        name:kMRMediaRemoteNowPlayingApplicationClientStateDidChange
-        object:nil];
-    [[NSNotificationCenter defaultCenter]
-        addObserver:self
-        selector:@selector(infoDidChange:)
-        name:kMRNowPlayingPlaybackQueueChangedNotification
-        object:nil];
-    [[NSNotificationCenter defaultCenter]
-        addObserver:self
-        selector:@selector(infoDidChange:)
-        name:kMRPlaybackQueueContentItemsChangedNotification
-        object:nil];
-    [[NSNotificationCenter defaultCenter]
-        addObserver:self
-        selector:@selector(playingDidChange:)
-        name:kMRMediaRemoteNowPlayingApplicationIsPlayingDidChangeNotification
-        object:nil];
-    [[NSNotificationCenter defaultCenter]
-        addObserver:self
-        selector:@selector(infoDidChange:)
-        name:kMRPlaybackQueueContentItemArtworkChangedNotification
-        object:nil];
+    _elapsedTime = NAN;
+    _duration = NAN;
+    _isPlaying = NO;
+    _isVideo = NO;
+    _clientBundleIdentifier = @"";
 
-    [self updateApp];
-    [self updateInfo];
-    [self updateState];
-
+    [self setupMediaRemote];
+    [self startTimer];
     return self;
 }
 
 - (void)dealloc
 {
-    [[NSNotificationCenter defaultCenter]
-        removeObserver:self];
-
-    self.appBundleIdentifier = nil;
-    self.appName = nil;
-    self.appIcon = nil;
-    self.album = nil;
-    self.artist = nil;
-    self.title = nil;
+    [self.timer invalidate];
+    self.timer = nil;
 }
 
-- (void)updateApp
+- (void)setupMediaRemote
 {
-    MRMediaRemoteGetNowPlayingClient(dispatch_get_main_queue(),
-        ^(id clientObj)
-        {
-            NSString *appBundleIdentifier = nil;
-            NSString *appName = nil;
-            NSImage *appIcon = nil;
+    void *handle = dlopen("/System/Library/PrivateFrameworks/MediaRemote.framework/MediaRemote", RTLD_LAZY);
+    if (!handle) {
+        return;
+    }
+    MRMediaRemoteGetNowPlayingInfo_ptr = (MRMediaRemoteGetNowPlayingInfo_f)dlsym(handle, "MRMediaRemoteGetNowPlayingInfo");
+    MRMediaRemoteRegisterForNowPlayingNotifications_ptr = (MRMediaRemoteRegisterForNowPlayingNotifications_f)dlsym(handle, "MRMediaRemoteRegisterForNowPlayingNotifications");
+    MRMediaRemoteCopyNowPlayingClient_ptr = (MRMediaRemoteCopyNowPlayingClient_f)dlsym(handle, "MRMediaRemoteCopyNowPlayingClient");
 
-            if (nil != clientObj)
-            {
-                appBundleIdentifier = MRNowPlayingClientGetBundleIdentifier(clientObj);
-                if (nil == appBundleIdentifier)
-                    appBundleIdentifier = MRNowPlayingClientGetParentAppBundleIdentifier(clientObj);
+    if (MRMediaRemoteRegisterForNowPlayingNotifications_ptr) {
+        MRMediaRemoteRegisterForNowPlayingNotifications_ptr(dispatch_get_main_queue());
+    }
 
-                if (nil != appBundleIdentifier)
-                {
-                    NSURL *url = [[NSWorkspace sharedWorkspace]
-                        URLForApplicationWithBundleIdentifier: appBundleIdentifier];
-                    if (nil != url)
-                    {
-                        appName = [[NSFileManager defaultManager] displayNameAtPath:[url path]];
-                        appIcon = [[NSWorkspace sharedWorkspace] iconForFile:[url path]];
-                    }
-                }
-            }
-
-            if (self.appBundleIdentifier != appBundleIdentifier ||
-                self.appName != appName ||
-                self.appIcon != appIcon)
-            {
-                self.appBundleIdentifier = appBundleIdentifier;
-                self.appName = appName;
-                self.appIcon = appIcon;
-
-                [[NSNotificationCenter defaultCenter]
-                    postNotificationName:NowPlayingInfoNotification
-                    object:self];
-            }
-        });
+    // Resolve CFString keys safely
+    void *sym;
+    sym = dlsym(handle, "kMRMediaRemoteNowPlayingInfoElapsedTime");
+    kElapsedKey = sym ? *(CFStringRef *)sym : NULL;
+    sym = dlsym(handle, "kMRMediaRemoteNowPlayingInfoDuration");
+    kDurationKey = sym ? *(CFStringRef *)sym : NULL;
+    sym = dlsym(handle, "kMRMediaRemoteNowPlayingInfoPlaybackRate");
+    kPlaybackRateKey = sym ? *(CFStringRef *)sym : NULL;
+    sym = dlsym(handle, "kMRMediaRemoteNowPlayingInfoMediaType");
+    kMediaTypeKey = sym ? *(CFStringRef *)sym : NULL;
+    sym = dlsym(handle, "kMRMediaRemoteNowPlayingInfoSupportsVideo");
+    kSupportsVideoKey = sym ? *(CFStringRef *)sym : NULL;
 }
 
-- (void)updateInfo
+- (void)startTimer
 {
-    MRMediaRemoteGetNowPlayingInfo(dispatch_get_main_queue(),
-        ^(NSDictionary *info)
-        {
-            NSString *album = [info objectForKey:kMRMediaRemoteNowPlayingInfoAlbum];
-            NSString *artist = [info objectForKey:kMRMediaRemoteNowPlayingInfoArtist];
-            NSString *title = [info objectForKey:kMRMediaRemoteNowPlayingInfoTitle];
-        
-            NSNumber *totalDuration = [info objectForKey:kMRMediaRemoteNowPlayingInfoDuration];
-            NSNumber *elapsedTime = [info objectForKey:kMRMediaRemoteNowPlayingInfoElapsedTime];
-        
-            NSNumber *playbackRate = [info objectForKey:kMRMediaRemoteNowPlayingInfoPlaybackRate];
-        
-            NSData *albumArtData = [info objectForKey:kMRMediaRemoteNowPlayingInfoArtworkData];
-        
-            NSDate *refreshedAt = [info objectForKey:kMRMediaRemoteNowPlayingInfoTimestamp];
-            
-            self.album = album;
-            self.artist = artist;
-            self.title = title;
-        
-            self.elapsedTime = elapsedTime;
-            self.totalDuration = totalDuration;
-            self.playbackRate = playbackRate;
-        
-            self.refreshedAt = refreshedAt;
-            
-            self.albumArt = [[NSImage alloc] initWithData:albumArtData];
-            
-            [[NSNotificationCenter defaultCenter]
-             postNotificationName:NowPlayingInfoNotification
-             object:self];
-            });
+    self.timer = [NSTimer scheduledTimerWithTimeInterval:0.5
+                                                  target:self
+                                                selector:@selector(pollNowPlaying)
+                                                userInfo:nil
+                                                 repeats:YES];
 }
 
-- (void)updateState
+- (void)pollNowPlaying
 {
-    MRMediaRemoteGetNowPlayingApplicationIsPlaying(dispatch_get_main_queue(),
-        ^(BOOL playing)
-        {
-            if (self.playing != playing)
-            {
-                self.playing = playing;
+    if (!MRMediaRemoteGetNowPlayingInfo_ptr) {
+        return;
+    }
+    MRMediaRemoteGetNowPlayingInfo_ptr(dispatch_get_main_queue(), ^(CFDictionaryRef dictRef){
+        if (!dictRef) return;
+        NSDictionary *info = (__bridge NSDictionary *)dictRef;
 
-                [[NSNotificationCenter defaultCenter]
-                    postNotificationName:NowPlayingStateNotification
-                    object:self];
-            }
-        });
+        id elapsedObj = kElapsedKey ? info[(__bridge id)kElapsedKey] : nil;
+        id durationObj = kDurationKey ? info[(__bridge id)kDurationKey] : nil;
+        id rateObj = kPlaybackRateKey ? info[(__bridge id)kPlaybackRateKey] : nil;
+        id mediaTypeObj = kMediaTypeKey ? info[(__bridge id)kMediaTypeKey] : nil;
+        id supportsVideoObj = kSupportsVideoKey ? info[(__bridge id)kSupportsVideoKey] : nil;
+
+        // Fallback to string keys if CFString constants unavailable
+        if (!elapsedObj) elapsedObj = info[@"kMRMediaRemoteNowPlayingInfoElapsedTime"];
+        if (!durationObj) durationObj = info[@"kMRMediaRemoteNowPlayingInfoDuration"];
+        if (!rateObj) rateObj = info[@"kMRMediaRemoteNowPlayingInfoPlaybackRate"];
+        if (!mediaTypeObj) mediaTypeObj = info[@"kMRMediaRemoteNowPlayingInfoMediaType"];
+        if (!supportsVideoObj) supportsVideoObj = info[@"kMRMediaRemoteNowPlayingInfoSupportsVideo"];
+
+        id client = MRMediaRemoteCopyNowPlayingClient_ptr ? MRMediaRemoteCopyNowPlayingClient_ptr() : nil;
+        NSString *bundleId = @"";
+        if (client && [client respondsToSelector:NSSelectorFromString(@"bundleIdentifier")]) {
+            bundleId = [client valueForKey:@"bundleIdentifier"] ?: @"";
+        }
+        if (bundleId.length == 0) {
+            bundleId = [NSWorkspace sharedWorkspace].frontmostApplication.bundleIdentifier ?: @"";
+        }
+        double rateVal = 0.0;
+        if ([rateObj respondsToSelector:@selector(doubleValue)]) {
+            rateVal = [rateObj doubleValue];
+        }
+        BOOL playing = rateVal > 0.05;
+
+        BOOL video = NO;
+        if ([supportsVideoObj respondsToSelector:@selector(boolValue)]) {
+            video = [supportsVideoObj boolValue];
+        } else if ([mediaTypeObj respondsToSelector:@selector(intValue)]) {
+            // Empirical: mediaType >= 2 indicates video in many builds
+            video = [mediaTypeObj intValue] >= 2;
+        } else if ([mediaTypeObj isKindOfClass:[NSString class]]) {
+            video = [[[mediaTypeObj description] lowercaseString] containsString:@"video"];
+        }
+
+        double e = [elapsedObj respondsToSelector:@selector(doubleValue)] ? [elapsedObj doubleValue] : NAN;
+        double d = [durationObj respondsToSelector:@selector(doubleValue)] ? [durationObj doubleValue] : NAN;
+
+        // Fallback heuristic for browsers: if playing from a browser bundle and duration is present
+        if (!video && playing && d > 0 && ( [bundleId containsString:@".google.Chrome"] || [bundleId containsString:@"chromium"] || [bundleId containsString:@"yandex"] || [bundleId containsString:@"Safari"] || [bundleId.lowercaseString containsString:@"comet"])) {
+            video = YES;
+        }
+
+        BOOL changed = NO;
+        if (_isPlaying != playing) { _isPlaying = playing; changed = YES; }
+        if (_isVideo != video) { _isVideo = video; changed = YES; }
+        if (!(_elapsedTime == e || (isnan(_elapsedTime) && isnan(e)))) { _elapsedTime = e; changed = YES; }
+        if (!(_duration == d || (isnan(_duration) && isnan(d)))) { _duration = d; changed = YES; }
+        if (![_clientBundleIdentifier isEqualToString:bundleId ?: @""]) { _clientBundleIdentifier = bundleId ?: @""; changed = YES; }
+
+        if (changed) {
+            [[NSNotificationCenter defaultCenter] postNotificationName:NowPlayingNotification object:self userInfo:nil];
+        }
+    });
 }
 
-- (void)appDidChange:(NSNotification *)notification
-{
-    [self updateApp];
-}
-
-- (void)infoDidChange:(NSNotification *)notification
-{
-    [self updateInfo];
-}
-
-- (void)playingDidChange:(NSNotification *)notification
-{
-    [self updateState];
-}
 @end
 
-NSString *NowPlayingInfoNotification = @"NowPlayingInfo";
-NSString *NowPlayingStateNotification = @"NowPlayingState";
+

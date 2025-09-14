@@ -38,16 +38,25 @@ struct NotchedHUDView<T: HUDDefaultsProtocol>: View {
                 )
                 .overlay {
                     GeometryReader { geometry in
-                        RoundedRectangle(
-                            cornerRadius: 2
-                        )
-                        .fill(
-                            Color.accentColor
-                        )
-                        .frame(
-                            width: CGFloat(hud.value) * geometry.size.width,
-                            height: geometry.size.height
-                        )
+                        HStack(spacing: 6) {
+                            RoundedRectangle(
+                                cornerRadius: 2
+                            )
+                            .fill(
+                                Color.accentColor
+                            )
+                            .frame(
+                                width: max(0, CGFloat(hud.value) * geometry.size.width - 36),
+                                height: geometry.size.height
+                            )
+                            .frame(maxWidth: .infinity, alignment: .leading)
+
+                            let remaining = max(0, 1 - CGFloat(hud.value))
+                            Text(timeString(from: remaining))
+                                .font(.caption2.monospacedDigit())
+                                .foregroundStyle(.white.opacity(0.9))
+                                .frame(width: 30, alignment: .trailing)
+                        }
                         .frame(
                             width: geometry.size.width,
                             alignment: .leading
@@ -76,5 +85,13 @@ struct NotchedHUDView<T: HUDDefaultsProtocol>: View {
                 )
             )
         }
+    }
+
+    private func timeString(from progressRemaining: CGFloat) -> String {
+        let total = 300.0
+        let remain = Int(progressRemaining * total)
+        let m = remain / 60
+        let s = remain % 60
+        return String(format: "%02d:%02d", m, s)
     }
 }
