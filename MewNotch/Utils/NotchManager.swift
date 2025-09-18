@@ -18,6 +18,7 @@ class NotchManager: ObservableObject {
     @Published var isScreenLocked: Bool = false
     private var unlockTimer: Timer?
     private var isRefreshing: Bool = false
+    private var refreshRetryCount: Int = 0
     
     private init() {
         addListenerForScreenUpdates()
@@ -177,22 +178,52 @@ class NotchManager: ObservableObject {
     }
 
     @objc func screenDidUnlock() {
-        DispatchQueue.main.async {
-            self.isScreenLocked = false
+        // Use background queue to prevent main thread blocking
+        DispatchQueue.global(qos: .userInitiated).async {
+            // Update state immediately
+            DispatchQueue.main.async {
+                self.isScreenLocked = false
+            }
 
             // Cancel any existing unlock timer
-            self.unlockTimer?.invalidate()
+            DispatchQueue.main.async {
+                self.unlockTimer?.invalidate()
+            }
 
-            // Progressive delay system for TouchID unlock
-            self.scheduleUnlockRefresh()
+            // Add delay to allow system to stabilize before refresh
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                self.scheduleUnlockRefresh()
+            }
         }
     }
 
     private func scheduleUnlockRefresh() {
-        // Start with longer delay for TouchID stability
-        unlockTimer = Timer.scheduledTimer(withTimeInterval: 1.5, repeats: false) { _ in
+        // Start with longer delay for TouchID stability and add timeout protection
+        unlockTimer = Timer.scheduledTimer(withTimeInterval: 2.0, repeats: false) { _ in
+            DispatchQueue.main.async {
+                // Add timeout protection for refresh operation
+                self.safeRefreshWithTimeout()
+            }
+        }
+    }
+
+    private func safeRefreshWithTimeout() {
+        let refreshGroup = DispatchGroup()
+
+        refreshGroup.enter()
+        DispatchQueue.global(qos: .userInitiated).async {
             DispatchQueue.main.async {
                 self.safeRefreshNotches()
+                refreshGroup.leave()
+            }
+        }
+
+        // Set timeout for refresh operation
+        let result = refreshGroup.wait(timeout: .now() + 5.0)
+        if result == .timedOut {
+            DispatchQueue.main.async {
+                print("Warning: Notch refresh timed out, performing emergency reset")
+                self.forceReset()
             }
         }
     }
@@ -203,18 +234,39 @@ class NotchManager: ObservableObject {
 
         isRefreshing = true
 
+        // Add safety check for screen unlocking state
+        guard !isScreenLocked else {
+            isRefreshing = false
+            return
+        }
+
         // Check if screens are properly initialized
         guard !NSScreen.screens.isEmpty else {
-            // Retry after screen initialization
-            DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
-                self.isRefreshing = false
-                self.safeRefreshNotches()
+            // Retry after screen initialization with limit
+            let maxRetries = 3
+            if refreshRetryCount < maxRetries {
+                refreshRetryCount += 1
+                DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+                    self.isRefreshing = false
+                    self.safeRefreshNotches()
+                }
+            } else {
+                print("Warning: Screen initialization failed after \(maxRetries) retries")
+                refreshRetryCount = 0
+                isRefreshing = false
             }
             return
         }
 
-        // Perform refresh
-        self.refreshNotches()
+        // Reset retry counter on successful screen detection
+        refreshRetryCount = 0
+
+        // Perform refresh with error handling
+        do {
+            self.refreshNotches()
+        } catch {
+            print("Error during notch refresh: \(error)")
+        }
 
         isRefreshing = false
     }

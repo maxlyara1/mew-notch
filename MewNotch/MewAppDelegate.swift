@@ -21,6 +21,9 @@ class MewAppDelegate: NSObject, NSApplicationDelegate {
     func applicationWillTerminate(
         _ notification: Notification
     ) {
+        // Ensure proper cleanup even in force quit scenarios
+        NotchManager.shared.removeListenerForScreenUpdates()
+        OSDUIManager.shared.start()
         NotificationCenter.default.removeObserver(self)
     }
     
@@ -30,7 +33,7 @@ class MewAppDelegate: NSObject, NSApplicationDelegate {
         if AppDefaults.shared.disableSystemHUD {
             OSDUIManager.shared.stop()
         }
-        
+
         // Need to Initialise once to set system listeners
         AudioInput.sharedInstance()
         AudioOutput.sharedInstance()
@@ -38,10 +41,29 @@ class MewAppDelegate: NSObject, NSApplicationDelegate {
         PowerStatus.sharedInstance()
         NowPlaying.sharedInstance()
         BrowserVideoProbe.shared.start()
-        
+
         NotchManager.shared.refreshNotches()
-        
-        NSApp.setActivationPolicy(.accessory)
+
+        // Change from .accessory to .prohibited to make app visible in Activity Monitor
+        // while still keeping it out of Dock and Cmd+Tab
+        NSApp.setActivationPolicy(.prohibited)
+
+        // Add emergency exit hotkey (Cmd+Shift+Option+Q)
+        setupEmergencyExitHotkey()
+    }
+
+    private func setupEmergencyExitHotkey() {
+        NSEvent.addGlobalMonitorForEvents(matching: .keyDown) { event in
+            let commandPressed = event.modifierFlags.contains(.command)
+            let shiftPressed = event.modifierFlags.contains(.shift)
+            let optionPressed = event.modifierFlags.contains(.option)
+
+            if commandPressed && shiftPressed && optionPressed && event.charactersIgnoringModifiers == "q" {
+                DispatchQueue.main.async {
+                    NSApp.terminate(nil)
+                }
+            }
+        }
     }
     
     func applicationShouldHandleReopen(
@@ -58,8 +80,11 @@ class MewAppDelegate: NSObject, NSApplicationDelegate {
     func applicationShouldTerminate(
         _ sender: NSApplication
     ) -> NSApplication.TerminateReply {
+        // Clean up resources before termination
+        NotchManager.shared.removeListenerForScreenUpdates()
         OSDUIManager.shared.start()
-        
+
         return .terminateNow
     }
+
 }

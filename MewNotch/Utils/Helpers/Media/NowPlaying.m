@@ -162,11 +162,11 @@ static CFStringRef kSupportsVideoKey;
         }
 
         BOOL changed = NO;
-        if (_isPlaying != playing) { _isPlaying = playing; changed = YES; }
-        if (_isVideo != video) { _isVideo = video; changed = YES; }
-        if (!(_elapsedTime == e || (isnan(_elapsedTime) && isnan(e)))) { _elapsedTime = e; changed = YES; }
-        if (!(_duration == d || (isnan(_duration) && isnan(d)))) { _duration = d; changed = YES; }
-        if (![_clientBundleIdentifier isEqualToString:bundleId ?: @""]) { _clientBundleIdentifier = bundleId ?: @""; changed = YES; }
+        if (self->_isPlaying != playing) { self->_isPlaying = playing; changed = YES; }
+        if (self->_isVideo != video) { self->_isVideo = video; changed = YES; }
+        if (!(self->_elapsedTime == e || (isnan(self->_elapsedTime) && isnan(e)))) { self->_elapsedTime = e; changed = YES; }
+        if (!(self->_duration == d || (isnan(self->_duration) && isnan(d)))) { self->_duration = d; changed = YES; }
+        if (![self->_clientBundleIdentifier isEqualToString:bundleId ?: @""]) { self->_clientBundleIdentifier = bundleId ?: @""; changed = YES; }
 
         if (changed) {
             [[NSNotificationCenter defaultCenter] postNotificationName:NowPlayingNotification object:self userInfo:nil];

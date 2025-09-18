@@ -55,42 +55,75 @@ class CollapsedNotchViewModel: ObservableObject {
 
     @Published var lastPowerStatus: String = ""
     @Published var lastBrightness: Float = 0.0
+    private var lastUnlockTime: Date = Date.distantPast
+    private var isInitialized: Bool = false
+    private var originalBrightnessEnabled: Bool = true
+    private var debounceTimer: Timer?
+    private var hoverDebounceTimer: Timer?
+    private var isProcessingUpdate: Bool = false
     
     init() {
         self.startListeners()
+        // Mark as initialized after a short delay to prevent initial brightness display
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+            self.isInitialized = true
+        }
     }
     
     deinit {
         self.stopListeners()
+        debounceTimer?.invalidate()
+        hoverDebounceTimer?.invalidate()
     }
     
     private func setActiveHUD(_ hudType: HUDType, model: HUDPropertyModel, timeout: TimeInterval?) {
-        hideAllHUDs(except: hudType)
-        activeHUD = hudType
-        
-        withAnimation(.spring()) {
-            switch hudType {
-            case .outputAudioVolume: self.outputAudioVolumeHUD = model
-            case .inputAudioVolume: self.inputAudioVolumeHUD = model
-            case .brightness: self.brightnessHUD = model
-            case .video: self.videoHUD = model
-            case .lockStatus: self.lockStatusHUD = model
-            case .outputAudioDevice: self.outputAudioDeviceHUD = model
-            case .inputAudioDevice: self.inputAudioDeviceHUD = model
-            case .powerStatus: self.powerStatusHUD = model
-            }
-        }
-        
-        if let timeout = timeout {
-            activeHUDTimer = .scheduledTimer(withTimeInterval: timeout, repeats: false) { [weak self] _ in
-                self?.hideActiveHUD()
+        // Prevent overlapping updates
+        guard !isProcessingUpdate else { return }
+
+        // More aggressive debouncing for performance
+        debounceTimer?.invalidate()
+        debounceTimer = Timer.scheduledTimer(withTimeInterval: 0.1, repeats: false) { [weak self] _ in
+            guard let self = self else { return }
+
+            self.isProcessingUpdate = true
+
+            // Use background queue for heavy operations
+            DispatchQueue.global(qos: .userInitiated).async {
+                DispatchQueue.main.async {
+                    self.hideAllHUDs(except: hudType)
+                    self.activeHUD = hudType
+
+                    // Simplified animation for better performance
+                    withAnimation(.linear(duration: 0.15)) {
+                        switch hudType {
+                        case .outputAudioVolume: self.outputAudioVolumeHUD = model
+                        case .inputAudioVolume: self.inputAudioVolumeHUD = model
+                        case .brightness: self.brightnessHUD = model
+                        case .video: self.videoHUD = model
+                        case .lockStatus: self.lockStatusHUD = model
+                        case .outputAudioDevice: self.outputAudioDeviceHUD = model
+                        case .inputAudioDevice: self.inputAudioDeviceHUD = model
+                        case .powerStatus: self.powerStatusHUD = model
+                        }
+                    }
+
+                    if let timeout = timeout {
+                        self.activeHUDTimer = .scheduledTimer(withTimeInterval: timeout, repeats: false) { [weak self] _ in
+                            self?.hideActiveHUD()
+                        }
+                    }
+
+                    self.isProcessingUpdate = false
+                }
             }
         }
     }
     
     private func hideActiveHUD() {
+        guard !isProcessingUpdate else { return }
+
         if let activeHUD = activeHUD {
-            withAnimation(.spring()) {
+            withAnimation(.linear(duration: 0.1)) {
                 switch activeHUD {
                 case .outputAudioVolume: self.outputAudioVolumeHUD = nil
                 case .inputAudioVolume: self.inputAudioVolumeHUD = nil
@@ -225,9 +258,26 @@ class CollapsedNotchViewModel: ObservableObject {
     }
     
     @objc func screenUnlocked(notification: Notification) {
-        if activeHUD == .lockStatus {
-            self.lockStatusHUD?.value = 0.0
-            setActiveHUD(.lockStatus, model: self.lockStatusHUD!, timeout: 1.0)
+        // Record unlock time to suppress brightness changes during unlock
+        lastUnlockTime = Date()
+
+        // Temporarily disable brightness HUD for 5 seconds
+        originalBrightnessEnabled = HUDBrightnessDefaults.shared.isEnabled
+        HUDBrightnessDefaults.shared.isEnabled = false
+
+        // Re-enable brightness HUD after 5 seconds
+        DispatchQueue.main.asyncAfter(deadline: .now() + 5.0) {
+            HUDBrightnessDefaults.shared.isEnabled = self.originalBrightnessEnabled
+        }
+
+        // Use background queue to prevent UI blocking
+        DispatchQueue.global(qos: .userInitiated).async {
+            DispatchQueue.main.async {
+                // Simply hide the lock status HUD without showing anything
+                if self.activeHUD == .lockStatus {
+                    self.hideActiveHUD()
+                }
+            }
         }
     }
 
@@ -250,6 +300,15 @@ class CollapsedNotchViewModel: ObservableObject {
               let elapsed = ui["elapsed"] as? Double,
               let duration = ui["duration"] as? Double,
               let playing = ui["playing"] as? Bool else { return }
+
+        // Aggressive debouncing for video updates to prevent lag on hover
+        hoverDebounceTimer?.invalidate()
+        hoverDebounceTimer = Timer.scheduledTimer(withTimeInterval: 0.2, repeats: false) { [weak self] _ in
+            self?.processVideoUpdate(bundleId: bundleId, elapsed: elapsed, duration: duration, playing: playing)
+        }
+    }
+
+    private func processVideoUpdate(bundleId: String, elapsed: Double, duration: Double, playing: Bool) {
 
         if HUDVideoDefaults.shared.chromiumOnly && !(bundleId.contains(".google.Chrome") || bundleId.lowercased().contains("yandex") || bundleId.lowercased().contains("chromium") || bundleId.lowercased().contains("comet")) {
             return
@@ -355,12 +414,20 @@ class CollapsedNotchViewModel: ObservableObject {
         _ notification: NSNotification
     ) {
         if !HUDBrightnessDefaults.shared.isEnabled { return }
-        
+
+        // Don't show brightness during initialization
+        if !isInitialized { return }
+
+        // Suppress brightness display for 3 seconds after unlock to prevent unwanted display
+        if Date().timeIntervalSince(lastUnlockTime) < 3.0 {
+            return
+        }
+
         var newBrightness: Float! = (notification.userInfo?["value"] as? Float)
         newBrightness = newBrightness ?? Brightness.sharedInstance().brightness
-        
+
         defer { lastBrightness = newBrightness }
-        
+
         if !HUDBrightnessDefaults.shared.showAutoBrightnessChanges && abs(lastBrightness - newBrightness) < 0.01 {
             if activeHUD == .brightness {
                 self.brightnessHUD?.value = newBrightness
