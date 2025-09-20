@@ -31,10 +31,15 @@ final class BrowserVideoProbe {
     private var localBundle: String = ""
     private var lastUpdateTime: Date = Date()
     private var isVideoActive: Bool = false
+    private var isManuallyPaused: Bool = false
+    private var globalKeyMonitors: [Any] = []
 
     func start() {
         timer?.invalidate()
-        
+
+        // Start global key monitoring for multiple key types
+        startGlobalKeyMonitoring()
+
         timer = .scheduledTimer(withTimeInterval: 0.5, repeats: true) { [weak self] _ in
             self?.updateVideoProgress()
         }
@@ -44,6 +49,10 @@ final class BrowserVideoProbe {
         timer?.invalidate()
         timer = nil
         isVideoActive = false
+        isManuallyPaused = false
+
+        // Stop global key monitoring
+        stopGlobalKeyMonitoring()
     }
 
     private func updateVideoProgress() {
@@ -87,7 +96,8 @@ final class BrowserVideoProbe {
                         // Update all values
                         self.lastElapsed = e
                         self.lastDuration = d
-                        self.lastIsPlaying = (play == 1)
+                        // If manually paused, show as paused regardless of browser state
+                        self.lastIsPlaying = (play == 1) && !self.isManuallyPaused
                         self.lastBundle = app
                         
                         // Update local tracking
@@ -97,6 +107,15 @@ final class BrowserVideoProbe {
                         self.localBundle = app
                         self.lastUpdateTime = Date()
                         self.isVideoActive = true
+                        
+                        // Only reset manual pause if video state actually changed
+                        if play == 1 && self.isManuallyPaused {
+                            // Video is playing in browser, but we have manual pause
+                            // Keep manual pause state
+                        } else if play == 0 {
+                            // Video is paused in browser, reset manual pause
+                            self.isManuallyPaused = false
+                        }
                         
                         // Send notification
                         self.sendNotification()
@@ -118,11 +137,11 @@ final class BrowserVideoProbe {
             if isVideoActive && localDuration.isFinite && localDuration > 0 {
                 NSLog("BrowserVideoProbe: using local data - elapsed=%.2f duration=%.2f playing=%d", localElapsed, localDuration, localIsPlaying ? 1 : 0)
                 
-                // Update elapsed time if playing
+                // Update elapsed time only if playing and not manually paused
                 let now = Date()
                 let timeSinceLastUpdate = now.timeIntervalSince(lastUpdateTime)
                 
-                if localIsPlaying {
+                if localIsPlaying && !isManuallyPaused {
                     localElapsed += timeSinceLastUpdate
                     
                     // Don't exceed duration
@@ -131,11 +150,13 @@ final class BrowserVideoProbe {
                         localIsPlaying = false
                     }
                 }
+                // If manually paused, don't advance time - keep current elapsed time
                 
                 // Update public values
                 lastElapsed = localElapsed
                 lastDuration = localDuration
-                lastIsPlaying = localIsPlaying
+                // If manually paused, show as paused regardless of localIsPlaying
+                lastIsPlaying = localIsPlaying && !isManuallyPaused
                 lastBundle = localBundle
                 lastUpdateTime = now
                 
@@ -174,5 +195,80 @@ final class BrowserVideoProbe {
             }
         }
         return nil
+    }
+    
+    private func startGlobalKeyMonitoring() {
+        // Remove existing monitors
+        stopGlobalKeyMonitoring()
+
+        // Start multiple key monitoring methods for maximum reliability
+        let systemMonitor = NSEvent.addGlobalMonitorForEvents(matching: .systemDefined) { [weak self] event in
+            let mediaKeySubtype: Int32 = 8
+            if event.subtype.rawValue == mediaKeySubtype {
+
+                let keyCode = ((event.data1 & 0xFFFF0000) >> 16)
+                let keyFlags = (event.data1 & 0x0000FFFF)
+                let isKeyDown = ((keyFlags & 0xFF00) >> 8) == 0xA
+
+                // Play/Pause key code is 16
+                let playPauseKeyCode: Int32 = 16
+
+                if isKeyDown && keyCode == playPauseKeyCode {
+                    NSLog("BrowserVideoProbe: Media Play/Pause key pressed (keyCode: %d)", keyCode)
+                    self?.toggleManualPause()
+                }
+            }
+        }
+
+        let regularMonitor = NSEvent.addGlobalMonitorForEvents(matching: .keyDown) { [weak self] event in
+            // F8 key (keyCode 100) - most common media key
+            let isF8 = event.keyCode == 100
+
+            // Cmd+P combination
+            let isCmdP = event.modifierFlags.contains(.command) && event.characters?.lowercased() == "p"
+
+            // Option+P combination (alternative)
+            let isOptionP = event.modifierFlags.contains(.option) && event.characters?.lowercased() == "p"
+
+            // Trigger on any of these
+            if isF8 || isCmdP || isOptionP {
+                let keyName = isF8 ? "F8" : (isCmdP ? "Cmd+P" : "Option+P")
+                NSLog("BrowserVideoProbe: %s key pressed (keyCode: %d)", keyName, event.keyCode)
+                self?.toggleManualPause()
+            }
+        }
+
+        // Store both monitors
+        if let systemMonitor = systemMonitor {
+            globalKeyMonitors.append(systemMonitor)
+        }
+        if let regularMonitor = regularMonitor {
+            globalKeyMonitors.append(regularMonitor)
+        }
+
+        NSLog("BrowserVideoProbe: Started %d key monitors", globalKeyMonitors.count)
+    }
+
+    private func stopGlobalKeyMonitoring() {
+        // Remove all existing monitors
+        for monitor in globalKeyMonitors {
+            NSEvent.removeMonitor(monitor)
+        }
+        globalKeyMonitors.removeAll()
+    }
+    
+    private func toggleManualPause() {
+        // Only toggle if video is active
+        guard isVideoActive else { return }
+        
+        isManuallyPaused.toggle()
+        
+        NSLog("BrowserVideoProbe: manual pause toggled - isManuallyPaused: %@", isManuallyPaused ? "true" : "false")
+        
+        // Don't change localIsPlaying - let the normal video state handling work
+        // Just use isManuallyPaused flag to control time advancement
+        
+        // Send notification to update UI
+        sendNotification()
     }
 }
