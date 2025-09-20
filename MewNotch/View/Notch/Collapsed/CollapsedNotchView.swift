@@ -21,7 +21,7 @@ struct CollapsedNotchView: View {
     
     var body: some View {
         HStack(spacing: 0) {
-            // Left side HUDs
+            // Left side HUDs (constrained to safeLeftWidth)
             HStack(spacing: 2) {
                 // Video HUD (closest to notch)
                 VideoHUDLeftView(
@@ -51,8 +51,14 @@ struct CollapsedNotchView: View {
                 notchSize: notchViewModel.notchSize
             )
 
-            // Right side HUDs
+            // Right side HUDs (constrained to safeRightWidth)
             HStack(spacing: 2) {
+                // Video HUD (closest to notch)
+                VideoHUDRightView(
+                    notchViewModel: notchViewModel,
+                    hudModel: collapsedNotchViewModel.videoHUD
+                )
+
                 // Standard HUDs
                 MinimalHUDRightView(
                     notchViewModel: notchViewModel,
@@ -68,12 +74,6 @@ struct CollapsedNotchView: View {
                     notchViewModel: notchViewModel,
                     defaults: HUDBrightnessDefaults.shared,
                     hudModel: collapsedNotchViewModel.brightnessHUD
-                )
-                
-                // Video HUD (closest to notch)
-                VideoHUDRightView(
-                    notchViewModel: notchViewModel,
-                    hudModel: collapsedNotchViewModel.videoHUD
                 )
             }
         }

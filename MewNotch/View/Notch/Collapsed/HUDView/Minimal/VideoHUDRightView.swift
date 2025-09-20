@@ -67,6 +67,7 @@ struct VideoHUDRightView: View {
                 )
             )
             .padding(.leading, 2)
+            // Убираем вертикальный сдвиг вниз, оставляем только горизонтальные ограничения
             .zIndex(1)
             .onAppear {
                 withAnimation(.spring(response: 0.5, dampingFraction: 0.7)) {

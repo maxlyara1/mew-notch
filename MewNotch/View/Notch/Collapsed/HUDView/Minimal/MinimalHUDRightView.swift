@@ -20,22 +20,28 @@ struct MinimalHUDRightView<T: HUDDefaultsProtocol>: View {
                 notchViewModel: notchViewModel,
                 variant: .right
             ) {
-                AnimatedTextView(
-                    value: Double(hud.value * 100)
-                ) { value in
-                    Text(
-                        String(
-                            format: "%02.0f",
-                            value
+                HStack(spacing: 4) {
+                    hud.getIcon()
+                        .font(.title3)
+                        .foregroundStyle(Color.white)
+                    
+                    AnimatedTextView(
+                        value: Double(hud.value * 100)
+                    ) { value in
+                        Text(
+                            String(
+                                format: "%02.0f",
+                                value
+                            )
                         )
-                    )
-                    .fixedSize(horizontal: true, vertical: false)
-                    .font(
-                        .title2.weight(
-                            .medium
+                        .fixedSize(horizontal: true, vertical: false)
+                        .font(
+                            .title2.weight(
+                                .medium
+                            )
                         )
-                    )
-                    .foregroundStyle(Color.white)
+                        .foregroundStyle(Color.white)
+                    }
                 }
             }
         }

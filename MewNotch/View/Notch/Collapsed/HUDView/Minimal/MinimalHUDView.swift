@@ -29,17 +29,19 @@ struct MinimalHUDView<Content: View>: View {
         return content()
             .padding(pad)
             .frame(width: box, height: box)
+            .background(
+                RoundedRectangle(cornerRadius: 8)
+                    .fill(.black.opacity(0.8))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 8)
+                            .stroke(.white.opacity(0.1), lineWidth: 0.5)
+                    )
+            )
             .transition(
                 .move(edge: isLeft ? .trailing : .leading)
                     .combined(with: .opacity)
             )
-            .padding(
-                .init(
-                    top: 0,
-                    leading: extra * (isLeft ? 1 : -1),
-                    bottom: 0,
-                    trailing: extra * (isLeft ? -1 : 1)
-                )
-            )
+            // Remove vertical push; keep only horizontal padding from notch
+            .padding(.horizontal, extra)
     }
 }

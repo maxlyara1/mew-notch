@@ -28,6 +28,27 @@ class NotchViewModel: ObservableObject {
         height: 0
     )
     
+    // Safe horizontal widths available on the left/right side of the physical notch
+    var safeLeftWidth: CGFloat {
+        if let width = screen.auxiliaryTopLeftArea?.width {
+            return width
+        }
+        let totalWidth = screen.frame.width
+        let notchWidth = NotchUtils.shared.notchSize(screen: self.screen, force: true).width
+        let freeWidth = max(0, totalWidth - notchWidth)
+        return freeWidth / 2
+    }
+    
+    var safeRightWidth: CGFloat {
+        if let width = screen.auxiliaryTopRightArea?.width {
+            return width
+        }
+        let totalWidth = screen.frame.width
+        let notchWidth = NotchUtils.shared.notchSize(screen: self.screen, force: true).width
+        let freeWidth = max(0, totalWidth - notchWidth)
+        return freeWidth / 2
+    }
+    
     @Published var isHovered: Bool = false
     @Published var isExpanded: Bool = false
     

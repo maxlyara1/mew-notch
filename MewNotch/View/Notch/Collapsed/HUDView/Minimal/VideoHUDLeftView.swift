@@ -44,6 +44,7 @@ struct VideoHUDLeftView: View {
                     .scaleEffect(isAnimating ? 1 : 0.3, anchor: .trailing)
             )
             .foregroundStyle(.white)
+            // Убираем вертикальный сдвиг вниз, оставляем только горизонтальные ограничения
             .transition(
                 .asymmetric(
                     insertion: .scale(scale: 0.2, anchor: .trailing)
