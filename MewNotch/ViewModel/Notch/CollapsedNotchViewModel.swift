@@ -90,7 +90,7 @@ class CollapsedNotchViewModel: ObservableObject {
             // Use background queue for heavy operations
             DispatchQueue.global(qos: .userInitiated).async {
                 DispatchQueue.main.async {
-                    self.hideAllHUDs(except: hudType)
+                    // Don't hide other HUDs - allow multiple to be visible
                     self.activeHUD = hudType
 
                     // Simplified animation for better performance
@@ -109,7 +109,7 @@ class CollapsedNotchViewModel: ObservableObject {
 
                     if let timeout = timeout {
                         self.activeHUDTimer = .scheduledTimer(withTimeInterval: timeout, repeats: false) { [weak self] _ in
-                            self?.hideActiveHUD()
+                            self?.hideSpecificHUD(hudType)
                         }
                     }
 
@@ -119,44 +119,23 @@ class CollapsedNotchViewModel: ObservableObject {
         }
     }
     
-    private func hideActiveHUD() {
+    private func hideSpecificHUD(_ hudType: HUDType) {
         guard !isProcessingUpdate else { return }
 
-        if let activeHUD = activeHUD {
-            withAnimation(.linear(duration: 0.1)) {
-                switch activeHUD {
-                case .outputAudioVolume: self.outputAudioVolumeHUD = nil
-                case .inputAudioVolume: self.inputAudioVolumeHUD = nil
-                case .brightness: self.brightnessHUD = nil
-                case .video: self.videoHUD = nil
-                case .lockStatus: self.lockStatusHUD = nil
-                case .outputAudioDevice: self.outputAudioDeviceHUD = nil
-                case .inputAudioDevice: self.inputAudioDeviceHUD = nil
-                case .powerStatus: self.powerStatusHUD = nil
-                }
+        withAnimation(.linear(duration: 0.1)) {
+            switch hudType {
+            case .outputAudioVolume: self.outputAudioVolumeHUD = nil
+            case .inputAudioVolume: self.inputAudioVolumeHUD = nil
+            case .brightness: self.brightnessHUD = nil
+            case .video: self.videoHUD = nil
+            case .lockStatus: self.lockStatusHUD = nil
+            case .outputAudioDevice: self.outputAudioDeviceHUD = nil
+            case .inputAudioDevice: self.inputAudioDeviceHUD = nil
+            case .powerStatus: self.powerStatusHUD = nil
             }
-            self.activeHUD = nil
         }
     }
     
-    private func hideAllHUDs(except: HUDType? = nil) {
-        if activeHUD != except {
-            hideActiveHUD()
-        }
-        if except != .outputAudioVolume { outputAudioVolumeHUD = nil }
-        if except != .inputAudioVolume { inputAudioVolumeHUD = nil }
-        if except != .brightness { brightnessHUD = nil }
-        // Keep video HUD persistent while other HUDs are active if setting allows
-        if except != .video {
-            if !HUDVideoDefaults.shared.persistentEdgeOverlay {
-                videoHUD = nil
-            }
-        }
-        if except != .lockStatus { lockStatusHUD = nil }
-        if except != .outputAudioDevice { outputAudioDeviceHUD = nil }
-        if except != .inputAudioDevice { inputAudioDeviceHUD = nil }
-        if except != .powerStatus { powerStatusHUD = nil }
-    }
 
     private func resetVideoState() {
         videoProgressTimer?.invalidate()
@@ -164,9 +143,7 @@ class CollapsedNotchViewModel: ObservableObject {
         videoPlaybackState = .inactive
         videoElapsed = 0
         videoDuration = 0
-        if activeHUD == .video {
-            hideActiveHUD()
-        }
+        hideSpecificHUD(.video)
     }
     
     func startListeners() {
@@ -274,9 +251,7 @@ class CollapsedNotchViewModel: ObservableObject {
         DispatchQueue.global(qos: .userInitiated).async {
             DispatchQueue.main.async {
                 // Simply hide the lock status HUD without showing anything
-                if self.activeHUD == .lockStatus {
-                    self.hideActiveHUD()
-                }
+                self.hideSpecificHUD(.lockStatus)
             }
         }
     }
@@ -333,9 +308,8 @@ class CollapsedNotchViewModel: ObservableObject {
                 duration: videoDuration
             )
 
-            if activeHUD != .video {
-                setActiveHUD(.video, model: model, timeout: nil)
-            } else {
+            // Always update video HUD when video is playing
+            withAnimation(.linear(duration: 0.1)) {
                 self.videoHUD = model
             }
 
@@ -357,7 +331,8 @@ class CollapsedNotchViewModel: ObservableObject {
                     duration: videoDuration
                 )
 
-                if activeHUD == .video {
+                // Always update video HUD when paused
+                withAnimation(.linear(duration: 0.1)) {
                     self.videoHUD = model
                 }
             } else if elapsed >= duration || duration <= 1 {
