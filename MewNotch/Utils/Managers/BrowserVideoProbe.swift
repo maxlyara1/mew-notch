@@ -16,6 +16,8 @@ extension NSNotification.Name {
 final class BrowserVideoProbe {
     static let shared = BrowserVideoProbe()
     private var timer: Timer?
+    private var timerSource: DispatchSourceTimer?
+    private let probeQueue = DispatchQueue(label: "mew.browser.probe", qos: .utility)
     private init() {}
 
     // Last sampled values (for UI)
@@ -30,24 +32,37 @@ final class BrowserVideoProbe {
     private var localIsPlaying: Bool = false
     private var localBundle: String = ""
     private var lastUpdateTime: Date = Date()
+    private var lastFreshDataAt: Date = .distantPast
     private var isVideoActive: Bool = false
     private var isManuallyPaused: Bool = false
     private var globalKeyMonitors: [Any] = []
+    private var lastKnownBrowserBundle: String = ""
+    private let staleTimeout: TimeInterval = 3.0 // если нет свежих данных
+    private let offscreenGrace: TimeInterval = 7.0 // держим HUD дольше, когда браузер не фронтовой
 
     func start() {
         timer?.invalidate()
+        timer = nil
+        timerSource?.cancel()
+        timerSource = nil
 
         // Start global key monitoring for multiple key types
         startGlobalKeyMonitoring()
 
-        timer = .scheduledTimer(withTimeInterval: 0.5, repeats: true) { [weak self] _ in
+        let source = DispatchSource.makeTimerSource(queue: probeQueue)
+        source.schedule(deadline: .now() + 0.5, repeating: 0.5)
+        source.setEventHandler { [weak self] in
             self?.updateVideoProgress()
         }
+        timerSource = source
+        source.resume()
     }
 
     func stop() {
         timer?.invalidate()
         timer = nil
+        timerSource?.cancel()
+        timerSource = nil
         isVideoActive = false
         isManuallyPaused = false
 
@@ -57,15 +72,11 @@ final class BrowserVideoProbe {
 
     private func updateVideoProgress() {
         let app = NSWorkspace.shared.frontmostApplication?.bundleIdentifier ?? ""
-        let isBrowser = app.contains("com.apple.Safari") || app.contains("com.google.Chrome") || app.lowercased().contains("yandex") || app.lowercased().contains("chromium") || app.lowercased().contains("comet")
-
-        if !app.isEmpty {
-            NSLog("BrowserVideoProbe: checking %@", app)
-        }
+        let isFrontBrowser = app.contains("com.apple.Safari") || app.contains("com.google.Chrome") || app.lowercased().contains("yandex") || app.lowercased().contains("chromium") || app.lowercased().contains("comet")
 
         // Try to get fresh data from browser
         var gotFreshData = false
-        if isBrowser {
+        if isFrontBrowser {
             let scriptSource: String
             if app.contains("com.apple.Safari") {
                 scriptSource = """
@@ -87,12 +98,10 @@ final class BrowserVideoProbe {
                 """
             }
 
-            if !scriptSource.isEmpty, let result = runAppleScript(scriptSource), !result.isEmpty {
+            if !scriptSource.isEmpty, let result = runAppleScript(scriptSource) {
                 let parts = result.split(separator: "|")
-                if parts.count == 3, let e = Double(parts[0]), let d = Double(parts[1]), let play = Int(parts[2]) {
+                if !result.isEmpty, parts.count == 3, let e = Double(parts[0]), let d = Double(parts[1]), let play = Int(parts[2]) {
                     if d > 0 {
-                        NSLog("BrowserVideoProbe: fresh data - elapsed=%.2f duration=%.2f playing=%d", e, d, play)
-                        
                         // Update all values
                         self.lastElapsed = e
                         self.lastDuration = d
@@ -106,7 +115,21 @@ final class BrowserVideoProbe {
                         self.localIsPlaying = (play == 1)
                         self.localBundle = app
                         self.lastUpdateTime = Date()
+                        self.lastFreshDataAt = self.lastUpdateTime
                         self.isVideoActive = true
+                        self.lastKnownBrowserBundle = app
+                        
+                        // If ended in current tab → hide immediately
+                        let epsilon: Double = 0.75
+                        if play == 0, d.isFinite, e.isFinite, (d - e) <= epsilon {
+                            self.isVideoActive = false
+                            self.lastIsPlaying = false
+                            self.localIsPlaying = false
+                            self.lastDuration = 0
+                            self.sendNotification()
+                            gotFreshData = true
+                            return
+                        }
                         
                         // Only reset manual pause if video state actually changed
                         if play == 1 && self.isManuallyPaused {
@@ -122,12 +145,23 @@ final class BrowserVideoProbe {
                         
                         gotFreshData = true
                     } else {
-                        // No video found
+                        // No fresh data in current tab
+                        // If browser is frontmost and we cannot read any video → hide quickly
                         self.isVideoActive = false
                         self.lastIsPlaying = false
                         self.localIsPlaying = false
+                        self.lastDuration = 0
+                        self.sendNotification()
                         gotFreshData = true
                     }
+                } else if result.isEmpty {
+                    // Frontmost but empty result → hide quickly
+                    self.isVideoActive = false
+                    self.lastIsPlaying = false
+                    self.localIsPlaying = false
+                    self.lastDuration = 0
+                    self.sendNotification()
+                    gotFreshData = true
                 }
             }
         }
@@ -135,8 +169,6 @@ final class BrowserVideoProbe {
         // If no fresh data, use local tracking
         if !gotFreshData {
             if isVideoActive && localDuration.isFinite && localDuration > 0 {
-                NSLog("BrowserVideoProbe: using local data - elapsed=%.2f duration=%.2f playing=%d", localElapsed, localDuration, localIsPlaying ? 1 : 0)
-                
                 // Update elapsed time only if playing and not manually paused
                 let now = Date()
                 let timeSinceLastUpdate = now.timeIntervalSince(lastUpdateTime)
@@ -163,25 +195,39 @@ final class BrowserVideoProbe {
                 // Send notification
                 sendNotification()
             } else {
-                // No video active
-                if isVideoActive {
-                    NSLog("BrowserVideoProbe: video ended")
+                let sinceFresh = Date().timeIntervalSince(lastFreshDataAt)
+                let limit = isFrontBrowser ? staleTimeout : offscreenGrace
+                if sinceFresh > limit {
                     isVideoActive = false
                     lastIsPlaying = false
                     localIsPlaying = false
+                    lastDuration = 0 // duration=0 → CollapsedNotchViewModel спрячeт HUD
                     sendNotification()
+                } else if !isFrontBrowser, !lastKnownBrowserBundle.isEmpty {
+                    // If previous browser process is no longer running → hide now
+                    let stillRunning = NSWorkspace.shared.runningApplications.contains { $0.bundleIdentifier == lastKnownBrowserBundle }
+                    if !stillRunning {
+                        isVideoActive = false
+                        lastIsPlaying = false
+                        localIsPlaying = false
+                        lastDuration = 0
+                        sendNotification()
+                    }
                 }
             }
         }
     }
     
     private func sendNotification() {
-        NotificationCenter.default.post(name: .BrowserVideoProgress, object: nil, userInfo: [
+        let payload: [String: Any] = [
             "bundle": lastBundle,
             "elapsed": lastElapsed,
             "duration": lastDuration,
             "playing": lastIsPlaying
-        ])
+        ]
+        DispatchQueue.main.async {
+            NotificationCenter.default.post(name: .BrowserVideoProgress, object: nil, userInfo: payload)
+        }
     }
 
     private func runAppleScript(_ source: String) -> String? {
@@ -261,14 +307,22 @@ final class BrowserVideoProbe {
         // Only toggle if video is active
         guard isVideoActive else { return }
         
-        isManuallyPaused.toggle()
+        let newPaused = !isManuallyPaused
+        isManuallyPaused = newPaused
         
-        NSLog("BrowserVideoProbe: manual pause toggled - isManuallyPaused: %@", isManuallyPaused ? "true" : "false")
+        // Freeze/unfreeze UI state immediately
+        if newPaused {
+            // Pause: stop indicating playing and freeze progression
+            lastIsPlaying = false
+        } else {
+            // Resume: follow the last known playing state from browser/local
+            lastIsPlaying = localIsPlaying
+        }
         
-        // Don't change localIsPlaying - let the normal video state handling work
-        // Just use isManuallyPaused flag to control time advancement
+        // Reset update clock to avoid sudden jumps on next tick
+        lastUpdateTime = Date()
         
-        // Send notification to update UI
+        // Notify UI on main thread via sendNotification()
         sendNotification()
     }
 }

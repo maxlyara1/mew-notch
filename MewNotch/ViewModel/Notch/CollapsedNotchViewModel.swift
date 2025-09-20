@@ -48,6 +48,8 @@ class CollapsedNotchViewModel: ObservableObject {
     private var videoPlaybackState: VideoPlaybackState = .inactive
     private var videoElapsed: Double = 0
     private var videoDuration: Double = 0
+    private var lastVideoNotificationAt: Date = .distantPast
+    private let videoHideGrace: TimeInterval = 4.0 // чуть больше, чем staleTimeout в Probe
 
     private enum VideoPlaybackState {
         case playing, paused, inactive
@@ -276,6 +278,8 @@ class CollapsedNotchViewModel: ObservableObject {
               let duration = ui["duration"] as? Double,
               let playing = ui["playing"] as? Bool else { return }
 
+        lastVideoNotificationAt = Date()
+
         // Aggressive debouncing for video updates to prevent lag on hover
         hoverDebounceTimer?.invalidate()
         hoverDebounceTimer = Timer.scheduledTimer(withTimeInterval: 0.2, repeats: false) { [weak self] _ in
@@ -338,6 +342,14 @@ class CollapsedNotchViewModel: ObservableObject {
             } else if elapsed >= duration || duration <= 1 {
                 resetVideoState()
             }
+        }
+    }
+
+    // Fallback: если от Probe долго нет событий и playing=false/duration=0 — скрыть HUD через grace период
+    private func scheduleVideoHideIfStale() {
+        let now = Date()
+        if now.timeIntervalSince(lastVideoNotificationAt) > videoHideGrace {
+            resetVideoState()
         }
     }
     
