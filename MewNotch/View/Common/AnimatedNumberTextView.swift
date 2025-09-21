@@ -7,24 +7,45 @@
 
 import SwiftUI
 
-struct AnimatedTextView<Content>: View, Animatable where Content: View {
+struct AnimatedTextView<Content>: View where Content: View {
     
     var value: Double
     
     var content: (Double) -> Content
     
-    var animatableData: Double {
-        get { value }
-        set { value = newValue }
-    }
+    private let epsilon: Double = 0.0001
+    @State private var previousInt: Int? = nil
     
     var body: some View {
-        content(
-            value
-        )
-        .animation(
-            .spring(response: 0.2, dampingFraction: 0.9, blendDuration: 0.05),
-            value: value
-        )
+        let displayedInt = Int(floor(value + epsilon))
+        let isIncreasing = (previousInt.map { displayedInt > $0 } ?? false)
+        let isDecreasing = (previousInt.map { displayedInt < $0 } ?? false)
+        let yOffset: CGFloat = isIncreasing ? -2 : (isDecreasing ? 2 : 0)
+        let scale: CGFloat = (isIncreasing || isDecreasing) ? 1.06 : 1.0
+        
+        content(Double(displayedInt))
+            // Изолируем от анимаций родителей
+            .transaction { transaction in
+                transaction.animation = nil
+            }
+            // Акуратная смена цифр и лёгкая микропластика
+            .contentTransition(.numericText(value: Double(displayedInt)))
+            .scaleEffect(scale)
+            .offset(y: yOffset)
+            .animation(
+                .spring(
+                    .smooth(
+                        duration: 0.22,
+                        extraBounce: 0.0
+                    )
+                ),
+                value: displayedInt
+            )
+            .onAppear {
+                previousInt = displayedInt
+            }
+            .onChange(of: displayedInt) { newValue in
+                previousInt = newValue
+            }
     }
 }

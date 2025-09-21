@@ -36,7 +36,7 @@ struct IslandHUDRightView<T: HUDDefaultsProtocol>: View {
                         )
                         .fixedSize(horizontal: true, vertical: false)
                         .font(
-                            .title2.weight(
+                            .title2.monospacedDigit().weight(
                                 .semibold
                             )
                         )
