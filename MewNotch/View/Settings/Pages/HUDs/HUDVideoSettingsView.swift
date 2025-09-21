@@ -15,12 +15,6 @@ struct HUDVideoSettingsView: View {
             Section {
                 Toggle("Enabled", isOn: $defaults.isEnabled)
 
-                // Only one style exposed (Island)
-                Picker(selection: $defaults.style) {
-                    Text("Island").tag(HUDStyle.Island)
-                } label: {
-                    Text("Style")
-                }
 
                 Toggle("Show only when video", isOn: $defaults.showOnlyWhenVideo)
                 Toggle("Chromium only", isOn: $defaults.chromiumOnly)

@@ -7,11 +7,4 @@
 
 import Foundation
 
-enum HUDStyle: String, CaseIterable, Identifiable, Codable {
-    var id: String { rawValue }
-    
-    case Minimal
-    case Progress
-    case Notched
-    case Island
-}
+// Удален HUDStyle enum - теперь используется только Island тема

@@ -20,27 +20,6 @@ struct HUDBrightnessSettingsView: View {
                         isOn: $brightnessDefaults.isEnabled
                     )
 
-                    Picker(
-                        selection: $brightnessDefaults.style,
-                        content: {
-                            ForEach(
-                                HUDStyle.allCases
-                            ) { style in
-                                Text(style.rawValue.capitalized)
-                                    .tag(style)
-                            }
-                        }
-                    ) {
-                        VStack(
-                            alignment: .leading
-                        ) {
-                            Text("Style")
-
-                            Text("Design to be used for HUD")
-                                .font(.footnote)
-                        }
-                    }
-                    .disabled(!brightnessDefaults.isEnabled)
                     
                     Toggle(
                         "Show Auto Brightness Changes",

@@ -18,27 +18,6 @@ struct HUDAudioSettingsView: View {
                 content: {
                     Toggle("Enabled", isOn: $audioInputDefaults.isEnabled)
 
-                    Picker(
-                        selection: $audioInputDefaults.style,
-                        content: {
-                            ForEach(
-                                HUDStyle.allCases
-                            ) { style in
-                                Text(style.rawValue.capitalized)
-                                    .tag(style)
-                            }
-                        }
-                    ) {
-                        VStack(
-                            alignment: .leading
-                        ) {
-                            Text("Style")
-
-                            Text("Design to be used for HUD")
-                                .font(.footnote)
-                        }
-                    }
-                    .disabled(!audioInputDefaults.isEnabled)
                 },
                 header: {
                     Text("Input")
@@ -49,27 +28,6 @@ struct HUDAudioSettingsView: View {
                 content: {
                     Toggle("Enabled", isOn: $audioOutputDefaults.isEnabled)
 
-                    Picker(
-                        selection: $audioOutputDefaults.style,
-                        content: {
-                            ForEach(
-                                HUDStyle.allCases
-                            ) { style in
-                                Text(style.rawValue.capitalized)
-                                    .tag(style)
-                            }
-                        }
-                    ) {
-                        VStack(
-                            alignment: .leading
-                        ) {
-                            Text("Style")
-
-                            Text("Design to be used for HUD")
-                                .font(.footnote)
-                        }
-                    }
-                    .disabled(!audioOutputDefaults.isEnabled)
                 },
                 header: {
                     Text("Output")

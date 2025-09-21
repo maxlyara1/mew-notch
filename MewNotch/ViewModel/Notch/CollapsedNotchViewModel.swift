@@ -17,16 +17,8 @@ class CollapsedNotchViewModel: ObservableObject {
              outputAudioDevice, inputAudioDevice, powerStatus
     }
     
-    // Timer to manage HUD visibility
-    private var activeHUDTimer: Timer?
-    
-    // Currently active HUD
-    private var activeHUD: HUDType? {
-        didSet {
-            // Invalidate timer when active HUD changes
-            activeHUDTimer?.invalidate()
-        }
-    }
+    // Timers to manage HUD visibility for each type
+    private var hudTimers: [HUDType: Timer] = [:]
     
     @Published var outputAudioVolumeHUD: HUDPropertyModel?
     @Published var outputAudioDeviceHUD: HUDPropertyModel?
@@ -76,6 +68,9 @@ class CollapsedNotchViewModel: ObservableObject {
         self.stopListeners()
         debounceTimer?.invalidate()
         hoverDebounceTimer?.invalidate()
+        // Invalidate all HUD timers
+        hudTimers.values.forEach { $0.invalidate() }
+        hudTimers.removeAll()
     }
     
     private func setActiveHUD(_ hudType: HUDType, model: HUDPropertyModel, timeout: TimeInterval?) {
@@ -92,11 +87,11 @@ class CollapsedNotchViewModel: ObservableObject {
             // Use background queue for heavy operations
             DispatchQueue.global(qos: .userInitiated).async {
                 DispatchQueue.main.async {
-                    // Don't hide other HUDs - allow multiple to be visible
-                    self.activeHUD = hudType
+                    // Invalidate existing timer for this HUD type
+                    self.hudTimers[hudType]?.invalidate()
 
-                    // Simplified animation for better performance
-                    withAnimation(.linear(duration: 0.15)) {
+                    // Улучшенные анимации для более плавного появления
+                    withAnimation(.spring(response: 0.4, dampingFraction: 0.8, blendDuration: 0.1)) {
                         switch hudType {
                         case .outputAudioVolume: self.outputAudioVolumeHUD = model
                         case .inputAudioVolume: self.inputAudioVolumeHUD = model
@@ -109,8 +104,9 @@ class CollapsedNotchViewModel: ObservableObject {
                         }
                     }
 
+                    // Set up individual timer for this HUD type
                     if let timeout = timeout {
-                        self.activeHUDTimer = .scheduledTimer(withTimeInterval: timeout, repeats: false) { [weak self] _ in
+                        self.hudTimers[hudType] = .scheduledTimer(withTimeInterval: timeout, repeats: false) { [weak self] _ in
                             self?.hideSpecificHUD(hudType)
                         }
                     }
@@ -124,7 +120,11 @@ class CollapsedNotchViewModel: ObservableObject {
     private func hideSpecificHUD(_ hudType: HUDType) {
         guard !isProcessingUpdate else { return }
 
-        withAnimation(.linear(duration: 0.1)) {
+        // Invalidate timer for this HUD type
+        hudTimers[hudType]?.invalidate()
+        hudTimers[hudType] = nil
+
+        withAnimation(.spring(response: 0.3, dampingFraction: 0.9, blendDuration: 0.05)) {
             switch hudType {
             case .outputAudioVolume: self.outputAudioVolumeHUD = nil
             case .inputAudioVolume: self.inputAudioVolumeHUD = nil
@@ -313,7 +313,7 @@ class CollapsedNotchViewModel: ObservableObject {
             )
 
             // Always update video HUD when video is playing
-            withAnimation(.linear(duration: 0.1)) {
+            withAnimation(.spring(response: 0.3, dampingFraction: 0.8, blendDuration: 0.1)) {
                 self.videoHUD = model
             }
 
@@ -336,7 +336,7 @@ class CollapsedNotchViewModel: ObservableObject {
                 )
 
                 // Always update video HUD when paused
-                withAnimation(.linear(duration: 0.1)) {
+                withAnimation(.spring(response: 0.3, dampingFraction: 0.8, blendDuration: 0.1)) {
                     self.videoHUD = model
                 }
             } else if elapsed >= duration || duration <= 1 {
@@ -416,7 +416,7 @@ class CollapsedNotchViewModel: ObservableObject {
         defer { lastBrightness = newBrightness }
 
         if !HUDBrightnessDefaults.shared.showAutoBrightnessChanges && abs(lastBrightness - newBrightness) < 0.01 {
-            if activeHUD == .brightness {
+            if brightnessHUD != nil {
                 self.brightnessHUD?.value = newBrightness
             }
             return

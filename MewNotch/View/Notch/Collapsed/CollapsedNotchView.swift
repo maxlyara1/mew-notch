@@ -22,7 +22,7 @@ struct CollapsedNotchView: View {
     var body: some View {
         HStack(spacing: 0) {
             // Left side HUDs (constrained to safeLeftWidth)
-            HStack(spacing: 2) {
+            HStack(spacing: 4) {
                 // Video HUD (closest to notch)
                 VideoHUDLeftView(
                     notchViewModel: notchViewModel,
@@ -30,17 +30,17 @@ struct CollapsedNotchView: View {
                 )
                 
                 // Standard HUDs
-                MinimalHUDLeftView(
+                IslandHUDLeftView(
                     notchViewModel: notchViewModel,
                     defaults: HUDBrightnessDefaults.shared,
                     hudModel: collapsedNotchViewModel.brightnessHUD
                 )
-                MinimalHUDLeftView(
+                IslandHUDLeftView(
                     notchViewModel: notchViewModel,
                     defaults: HUDAudioInputDefaults.shared,
                     hudModel: collapsedNotchViewModel.inputAudioVolumeHUD
                 )
-                MinimalHUDLeftView(
+                IslandHUDLeftView(
                     notchViewModel: notchViewModel,
                     defaults: HUDAudioOutputDefaults.shared,
                     hudModel: collapsedNotchViewModel.outputAudioVolumeHUD
@@ -52,7 +52,7 @@ struct CollapsedNotchView: View {
             )
 
             // Right side HUDs (constrained to safeRightWidth)
-            HStack(spacing: 2) {
+            HStack(spacing: 4) {
                 // Video HUD (closest to notch)
                 VideoHUDRightView(
                     notchViewModel: notchViewModel,
@@ -60,17 +60,17 @@ struct CollapsedNotchView: View {
                 )
 
                 // Standard HUDs
-                MinimalHUDRightView(
+                IslandHUDRightView(
                     notchViewModel: notchViewModel,
                     defaults: HUDAudioOutputDefaults.shared,
                     hudModel: collapsedNotchViewModel.outputAudioVolumeHUD
                 )
-                MinimalHUDRightView(
+                IslandHUDRightView(
                     notchViewModel: notchViewModel,
                     defaults: HUDAudioInputDefaults.shared,
                     hudModel: collapsedNotchViewModel.inputAudioVolumeHUD
                 )
-                MinimalHUDRightView(
+                IslandHUDRightView(
                     notchViewModel: notchViewModel,
                     defaults: HUDBrightnessDefaults.shared,
                     hudModel: collapsedNotchViewModel.brightnessHUD
@@ -80,5 +80,9 @@ struct CollapsedNotchView: View {
         .onReceive(notchDefaults.objectWillChange) {
             notchViewModel.refreshNotchSize()
         }
+        .animation(
+            .spring(response: 0.5, dampingFraction: 0.8, blendDuration: 0.1),
+            value: notchViewModel.notchSize
+        )
     }
 }

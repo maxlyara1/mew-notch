@@ -17,10 +17,6 @@ class HUDVideoDefaults: HUDDefaultsProtocol {
         didSet { withAnimation { self.objectWillChange.send() } }
     }
 
-    @CodableUserDefault(PREFIX + "Style", defaultValue: HUDStyle.Island)
-    var style: HUDStyle {
-        didSet { withAnimation { self.objectWillChange.send() } }
-    }
 
     @PrimitiveUserDefault(PREFIX + "ShowOnlyWhenVideo", defaultValue: true)
     var showOnlyWhenVideo: Bool {

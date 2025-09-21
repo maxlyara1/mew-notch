@@ -27,16 +27,5 @@ class HUDAudioInputDefaults: HUDDefaultsProtocol {
         }
     }
     
-    @CodableUserDefault(
-        PREFIX + "Style",
-        defaultValue: HUDStyle.Minimal
-    )
-    var style: HUDStyle {
-        didSet {
-            withAnimation {
-                self.objectWillChange.send()
-            }
-        }
-    }
 }
 

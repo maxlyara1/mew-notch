@@ -22,5 +22,9 @@ struct AnimatedTextView<Content>: View, Animatable where Content: View {
         content(
             value
         )
+        .animation(
+            .spring(response: 0.2, dampingFraction: 0.9, blendDuration: 0.05),
+            value: value
+        )
     }
 }

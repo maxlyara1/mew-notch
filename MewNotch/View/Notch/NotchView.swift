@@ -64,11 +64,18 @@ struct NotchView: View {
                     )
                 }
                 .scaleEffect(
-                    notchViewModel.isHovered ? 1.1 : 1.0,
+                    notchViewModel.isHovered ? 1.05 : 1.0,
                     anchor: .top
                 )
                 .shadow(
-                    radius: notchViewModel.isHovered ? 5 : 0
+                    color: notchViewModel.isHovered ? .black.opacity(0.4) : .clear,
+                    radius: notchViewModel.isHovered ? 16 : 0,
+                    x: 0,
+                    y: notchViewModel.isHovered ? 6 : 0
+                )
+                .animation(
+                    .spring(response: 0.7, dampingFraction: 0.6, blendDuration: 0.2),
+                    value: notchViewModel.isHovered
                 )
                 .onHover {
                     notchViewModel.onHover(
