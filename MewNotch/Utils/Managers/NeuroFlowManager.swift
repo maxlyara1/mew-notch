@@ -30,6 +30,12 @@ final class NeuroFlowManager: ObservableObject {
         NSSound.Name("Submarine"),
         NSSound.Name("Ping")
     ]
+    private let breakEndSoundNames: [NSSound.Name] = [
+        NSSound.Name("Tink"),
+        NSSound.Name("Pop"),
+        NSSound.Name("Hero"),
+        NSSound.Name("Glass")
+    ]
     
     private let activityEventTypes: [CGEventType] = [
         .keyDown,
@@ -150,10 +156,14 @@ final class NeuroFlowManager: ObservableObject {
     }
     
     private func endBreak() {
+        let wasBreak = (state == .break)
         state = .focus
         breakRemaining = 0
         activeBreakDuration = 0
         focusElapsed = 0
+        if wasBreak {
+            playBreakEndSoundIfNeeded()
+        }
     }
     
     private func resetAll() {
@@ -168,6 +178,18 @@ final class NeuroFlowManager: ObservableObject {
         for name in breakSoundNames {
             if let sound = NSSound(named: name) {
                 sound.volume = 0.6
+                sound.play()
+                return
+            }
+        }
+        NSSound.beep()
+    }
+
+    private func playBreakEndSoundIfNeeded() {
+        guard NeuroFlowDefaults.shared.playBreakSound else { return }
+        for name in breakEndSoundNames {
+            if let sound = NSSound(named: name) {
+                sound.volume = 0.55
                 sound.play()
                 return
             }

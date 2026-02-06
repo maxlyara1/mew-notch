@@ -87,7 +87,7 @@ struct NotchView: View {
                 .onHover {
                     notchViewModel.onHover(
                         $0,
-                        shouldExpand: notchDefaults.expandOnHover && !neuroFlow.isBreakActive
+                        shouldExpand: notchDefaults.expandOnHover
                     )
                 }
                 .onTapGesture(

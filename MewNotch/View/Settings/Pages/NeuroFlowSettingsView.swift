@@ -91,7 +91,7 @@ struct NeuroFlowSettingsView: View {
 
                 SettingsRow(
                     title: "Break sound",
-                    subtitle: "Soft chime when the pause starts."
+                    subtitle: "Soft chime when the pause starts and ends."
                 ) {
                     Toggle("", isOn: $neuroFlowDefaults.playBreakSound)
                         .labelsHidden()
