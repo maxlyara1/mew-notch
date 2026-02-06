@@ -20,10 +20,13 @@ NS_ASSUME_NONNULL_BEGIN
 @property (atomic, readonly) BOOL isVideo;
 @property (atomic, copy, readonly) NSString * _Nullable clientBundleIdentifier;
 
+// Playback control (best-effort via MediaRemote)
+- (void)pausePlayback;
+- (void)playPlayback;
+
 @end
 
 extern NSString *NowPlayingNotification;
 
 NS_ASSUME_NONNULL_END
-
 

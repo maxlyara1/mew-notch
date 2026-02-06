@@ -97,6 +97,28 @@ struct NeuroFlowSettingsView: View {
                         .labelsHidden()
                 }
             }
+
+            SettingsSection(
+                title: "Media",
+                subtitle: "Optionally pause audio/video during a break."
+            ) {
+                SettingsRow(
+                    title: "Pause media",
+                    subtitle: "Sends a system pause when a break starts."
+                ) {
+                    Toggle("", isOn: $neuroFlowDefaults.pauseMediaDuringBreak)
+                        .labelsHidden()
+                }
+
+                SettingsRow(
+                    title: "Resume after break",
+                    subtitle: "Plays again when the break ends."
+                ) {
+                    Toggle("", isOn: $neuroFlowDefaults.resumeMediaAfterBreak)
+                        .labelsHidden()
+                        .disabled(!neuroFlowDefaults.pauseMediaDuringBreak)
+                }
+            }
             
             SettingsSection(
                 title: "How it works",

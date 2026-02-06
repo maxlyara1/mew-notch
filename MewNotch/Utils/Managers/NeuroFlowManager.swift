@@ -24,6 +24,7 @@ final class NeuroFlowManager: ObservableObject {
     private var timer: Timer?
     private var lastTick: Date = .now
     private var activeBreakDuration: TimeInterval = 0
+    private var pausedMediaForBreak: Bool = false
     private let breakSoundNames: [NSSound.Name] = [
         NSSound.Name("Purr"),
         NSSound.Name("Glass"),
@@ -152,6 +153,7 @@ final class NeuroFlowManager: ObservableObject {
         activeBreakDuration = duration
         breakRemaining = duration
         focusElapsed = 0
+        pauseMediaIfNeeded()
         playBreakSoundIfNeeded()
     }
     
@@ -162,6 +164,7 @@ final class NeuroFlowManager: ObservableObject {
         activeBreakDuration = 0
         focusElapsed = 0
         if wasBreak {
+            resumeMediaIfNeeded()
             playBreakEndSoundIfNeeded()
         }
     }
@@ -195,6 +198,35 @@ final class NeuroFlowManager: ObservableObject {
             }
         }
         NSSound.beep()
+    }
+
+    private func pauseMediaIfNeeded() {
+        let defaults = NeuroFlowDefaults.shared
+        guard defaults.pauseMediaDuringBreak else {
+            pausedMediaForBreak = false
+            return
+        }
+        let nowPlaying = NowPlaying.sharedInstance()
+        guard nowPlaying.isPlaying else {
+            pausedMediaForBreak = false
+            return
+        }
+        nowPlaying.pausePlayback()
+        pausedMediaForBreak = true
+    }
+
+    private func resumeMediaIfNeeded() {
+        let defaults = NeuroFlowDefaults.shared
+        guard defaults.pauseMediaDuringBreak, defaults.resumeMediaAfterBreak else {
+            pausedMediaForBreak = false
+            return
+        }
+        guard pausedMediaForBreak else { return }
+        let nowPlaying = NowPlaying.sharedInstance()
+        if !nowPlaying.isPlaying {
+            nowPlaying.playPlayback()
+        }
+        pausedMediaForBreak = false
     }
     
     private func secondsSinceLastInput() -> TimeInterval {

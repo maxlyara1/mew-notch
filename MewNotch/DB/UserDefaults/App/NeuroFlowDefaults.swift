@@ -114,4 +114,24 @@ class NeuroFlowDefaults: ObservableObject {
             self.objectWillChange.send()
         }
     }
+
+    @PrimitiveUserDefault(
+        PREFIX + "PauseMediaDuringBreak",
+        defaultValue: true
+    )
+    var pauseMediaDuringBreak: Bool {
+        didSet {
+            self.objectWillChange.send()
+        }
+    }
+
+    @PrimitiveUserDefault(
+        PREFIX + "ResumeMediaAfterBreak",
+        defaultValue: true
+    )
+    var resumeMediaAfterBreak: Bool {
+        didSet {
+            self.objectWillChange.send()
+        }
+    }
 }

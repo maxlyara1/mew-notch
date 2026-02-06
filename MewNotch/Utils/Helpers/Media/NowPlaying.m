@@ -23,10 +23,19 @@ NSString *NowPlayingNotification = @"NowPlaying";
 typedef void (*MRMediaRemoteGetNowPlayingInfo_f)(dispatch_queue_t, void (^)(CFDictionaryRef));
 typedef void (*MRMediaRemoteRegisterForNowPlayingNotifications_f)(dispatch_queue_t);
 typedef id (*MRMediaRemoteCopyNowPlayingClient_f)(void);
+typedef void (*MRMediaRemoteSendCommand_f)(int command, CFDictionaryRef userInfo);
+typedef void (*MRMediaRemoteSendCommandWithOptions_f)(int command, CFDictionaryRef userInfo, void(^completion)(BOOL));
 
 static MRMediaRemoteGetNowPlayingInfo_f MRMediaRemoteGetNowPlayingInfo_ptr;
 static MRMediaRemoteRegisterForNowPlayingNotifications_f MRMediaRemoteRegisterForNowPlayingNotifications_ptr;
 static MRMediaRemoteCopyNowPlayingClient_f MRMediaRemoteCopyNowPlayingClient_ptr;
+static MRMediaRemoteSendCommand_f MRMediaRemoteSendCommand_ptr;
+static MRMediaRemoteSendCommandWithOptions_f MRMediaRemoteSendCommandWithOptions_ptr;
+
+// MediaRemote command ids (empirical, widely used)
+static const int kMRMediaRemoteCommandPlay = 0;
+static const int kMRMediaRemoteCommandPause = 1;
+static const int kMRMediaRemoteCommandTogglePlayPause = 2;
 
 // CFString keys from MediaRemote (resolved via dlsym)
 static CFStringRef kElapsedKey;
@@ -79,6 +88,8 @@ static CFStringRef kSupportsVideoKey;
     MRMediaRemoteGetNowPlayingInfo_ptr = (MRMediaRemoteGetNowPlayingInfo_f)dlsym(handle, "MRMediaRemoteGetNowPlayingInfo");
     MRMediaRemoteRegisterForNowPlayingNotifications_ptr = (MRMediaRemoteRegisterForNowPlayingNotifications_f)dlsym(handle, "MRMediaRemoteRegisterForNowPlayingNotifications");
     MRMediaRemoteCopyNowPlayingClient_ptr = (MRMediaRemoteCopyNowPlayingClient_f)dlsym(handle, "MRMediaRemoteCopyNowPlayingClient");
+    MRMediaRemoteSendCommand_ptr = (MRMediaRemoteSendCommand_f)dlsym(handle, "MRMediaRemoteSendCommand");
+    MRMediaRemoteSendCommandWithOptions_ptr = (MRMediaRemoteSendCommandWithOptions_f)dlsym(handle, "MRMediaRemoteSendCommandWithOptions");
 
     if (MRMediaRemoteRegisterForNowPlayingNotifications_ptr) {
         MRMediaRemoteRegisterForNowPlayingNotifications_ptr(dispatch_get_main_queue());
@@ -96,6 +107,31 @@ static CFStringRef kSupportsVideoKey;
     kMediaTypeKey = sym ? *(CFStringRef *)sym : NULL;
     sym = dlsym(handle, "kMRMediaRemoteNowPlayingInfoSupportsVideo");
     kSupportsVideoKey = sym ? *(CFStringRef *)sym : NULL;
+}
+
+- (BOOL)sendMediaCommand:(int)command
+{
+    if (MRMediaRemoteSendCommandWithOptions_ptr) {
+        MRMediaRemoteSendCommandWithOptions_ptr(command, NULL, ^(BOOL success){
+            (void)success;
+        });
+        return YES;
+    }
+    if (MRMediaRemoteSendCommand_ptr) {
+        MRMediaRemoteSendCommand_ptr(command, NULL);
+        return YES;
+    }
+    return NO;
+}
+
+- (void)pausePlayback
+{
+    [self sendMediaCommand:kMRMediaRemoteCommandPause];
+}
+
+- (void)playPlayback
+{
+    [self sendMediaCommand:kMRMediaRemoteCommandPlay];
 }
 
 - (void)startTimer
@@ -175,5 +211,4 @@ static CFStringRef kSupportsVideoKey;
 }
 
 @end
-
 
