@@ -25,6 +25,7 @@ class MewAppDelegate: NSObject, NSApplicationDelegate {
         NotchManager.shared.removeListenerForScreenUpdates()
         OSDUIManager.shared.start()
         NotificationCenter.default.removeObserver(self)
+        DimmingOverlayManager.shared.stop()
     }
     
     func applicationDidFinishLaunching(
@@ -41,6 +42,9 @@ class MewAppDelegate: NSObject, NSApplicationDelegate {
         PowerStatus.sharedInstance()
         NowPlaying.sharedInstance()
         BrowserVideoProbe.shared.start()
+
+        NeuroFlowManager.shared.start()
+        DimmingOverlayManager.shared.start()
 
         NotchManager.shared.refreshNotches()
 

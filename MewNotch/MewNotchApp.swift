@@ -50,14 +50,13 @@ struct MewNotchApp: App {
         MenuBarExtra(
             isInserted: $isMenuShown,
             content: {
-                Text("MewNotch")
-                
-                NotchOptionsView()
+                MenuBarPanelView()
             }
         ) {
             MewNotch.Assets.iconMenuBar
                 .renderingMode(.template)
         }
+        .menuBarExtraStyle(.window)
         .onChange(
             of: appDefaults.showMenuIcon
         ) { oldVal, newVal in

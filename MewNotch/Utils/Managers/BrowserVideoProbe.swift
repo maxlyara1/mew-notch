@@ -73,6 +73,18 @@ final class BrowserVideoProbe {
     private func updateVideoProgress() {
         let app = NSWorkspace.shared.frontmostApplication?.bundleIdentifier ?? ""
         let isFrontBrowser = app.contains("com.apple.Safari") || app.contains("com.google.Chrome") || app.lowercased().contains("yandex") || app.lowercased().contains("chromium") || app.lowercased().contains("comet")
+        let frontmostOnly = HUDVideoDefaults.shared.frontmostOnly
+
+        if frontmostOnly && !isFrontBrowser {
+            if isVideoActive || lastDuration > 0 {
+                isVideoActive = false
+                lastIsPlaying = false
+                localIsPlaying = false
+                lastDuration = 0
+                sendNotification()
+            }
+            return
+        }
 
         // Try to get fresh data from browser
         var gotFreshData = false

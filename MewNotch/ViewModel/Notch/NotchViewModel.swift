@@ -101,6 +101,24 @@ class NotchViewModel: ObservableObject {
         )
         
         hoverTimer?.invalidate()
+
+        if !shouldExpand {
+            if !isHovered && !isPinned {
+                withAnimation {
+                    self.isExpanded = false
+                    self.cornerRadius = NotchUtils.shared.collapsedCornerRadius
+                    self.extraNotchPadSize = .init(
+                        width: self.cornerRadius.top * 2,
+                        height: 0
+                    )
+                }
+            }
+
+            withAnimation {
+                self.isHovered = isHovered
+            }
+            return
+        }
         
         if isHovered {
             if shouldExpand {

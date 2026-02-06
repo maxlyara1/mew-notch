@@ -11,24 +11,58 @@ struct HUDVideoSettingsView: View {
     @StateObject var defaults = HUDVideoDefaults.shared
 
     var body: some View {
-        Form {
-            Section {
-                Toggle("Enabled", isOn: $defaults.isEnabled)
+        SettingsPage(
+            title: "Video",
+            subtitle: "Playback HUD and browser detection."
+        ) {
+            SettingsSection(
+                title: "Video HUD",
+                subtitle: "Control how playback appears in the notch."
+            ) {
+                SettingsRow(
+                    title: "Enabled",
+                    subtitle: "Show video playback in the notch."
+                ) {
+                    Toggle("", isOn: $defaults.isEnabled)
+                        .labelsHidden()
+                }
 
+                SettingsRow(
+                    title: "Only when video",
+                    subtitle: "Hide when audio-only playback is detected."
+                ) {
+                    Toggle("", isOn: $defaults.showOnlyWhenVideo)
+                        .labelsHidden()
+                }
 
-                Toggle("Show only when video", isOn: $defaults.showOnlyWhenVideo)
-                Toggle("Chromium only", isOn: $defaults.chromiumOnly)
+                SettingsRow(
+                    title: "Chromium only",
+                    subtitle: "Restrict detection to Chromium browsers."
+                ) {
+                    Toggle("", isOn: $defaults.chromiumOnly)
+                        .labelsHidden()
+                }
 
-                Toggle("Persistent edge overlay", isOn: $defaults.persistentEdgeOverlay)
+                SettingsRow(
+                    title: "Persistent edge overlay",
+                    subtitle: "Keep a subtle edge indicator visible."
+                ) {
+                    Toggle("", isOn: $defaults.persistentEdgeOverlay)
+                        .labelsHidden()
+                }
+
+                SettingsRow(
+                    title: "Frontmost only",
+                    subtitle: "Only show the HUD when the browser is active."
+                ) {
+                    Toggle("", isOn: $defaults.frontmostOnly)
+                        .labelsHidden()
+                }
             }
         }
-        .formStyle(.grouped)
-        .navigationTitle("Video")
     }
 }
 
 #Preview {
     HUDVideoSettingsView()
 }
-
-

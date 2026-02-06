@@ -14,54 +14,71 @@ struct AboutAppView: View {
     @ObservedObject var settingsViewModel: SettingsViewModel = .init()
     
     var body: some View {
-        Form {
-            Section(
-                content: {
-                    HStack {
-                        Text("Version")
-                        
-                        Spacer()
-                        
-                        Text(settingsViewModel.currentAppVersion)
-                    }
-                },
-                header: {
-                    Text("App")
+        SettingsPage(
+            title: "About",
+            subtitle: "Version info and updates."
+        ) {
+            SettingsSection(
+                title: "App",
+                subtitle: "Current build information."
+            ) {
+                SettingsRow(
+                    title: "Version",
+                    subtitle: nil
+                ) {
+                    Text(settingsViewModel.currentAppVersion)
+                        .font(.system(size: 13, weight: .semibold, design: .rounded))
                 }
-            )
+            }
             
-            Section(
-                content: {
-                    if let latestRelease = settingsViewModel.latestRelease {
-                        HStack {
-                            Text("Version")
-                            
-                            Spacer()
-                            
-                            Text(latestRelease.tagName)
-                                .bold()
+            SettingsSection(
+                title: "Latest Release",
+                subtitle: "Check GitHub for updates."
+            ) {
+                HStack {
+                    Text("Status")
+                        .font(.system(size: 13, weight: .semibold, design: .rounded))
+                    Spacer()
+                    if settingsViewModel.isLoadingLatestRelease {
+                        ProgressView()
+                            .scaleEffect(0.7)
+                    } else {
+                        Button("Check for Updates") {
+                            settingsViewModel.refreshLatestRelease()
                         }
-                        
-                        if let publishedAt = latestRelease.publishedAt {
-                            HStack {
-                                Text("Released At")
-                                
-                                Spacer()
-                                
-                                Text(
-                                    publishedAt.formatted(
-                                        format: "dd MMM yyyy, hh:mm a"
-                                    )
+                        .buttonStyle(.bordered)
+                        .controlSize(.small)
+                    }
+                }
+                
+                if let latestRelease = settingsViewModel.latestRelease {
+                    SettingsRow(
+                        title: "Version",
+                        subtitle: nil
+                    ) {
+                        Text(latestRelease.tagName)
+                            .font(.system(size: 13, weight: .semibold, design: .rounded))
+                    }
+                    
+                    if let publishedAt = latestRelease.publishedAt {
+                        SettingsRow(
+                            title: "Released",
+                            subtitle: nil
+                        ) {
+                            Text(
+                                publishedAt.formatted(
+                                    format: "dd MMM yyyy, hh:mm a"
                                 )
-                                .bold()
-                            }
+                            )
+                            .font(.system(size: 13, weight: .semibold, design: .rounded))
                         }
-                        
+                    }
+                    
+                    if !latestRelease.assets.isEmpty {
                         HStack {
                             Text("Download")
-                            
+                                .font(.system(size: 13, weight: .semibold, design: .rounded))
                             Spacer()
-                            
                             ForEach(
                                 latestRelease.assets,
                                 id: \.name
@@ -78,63 +95,30 @@ struct AboutAppView: View {
                                 }
                             }
                         }
-                        
-                        if let url = URL(
-                            string: "https://github.com/monuk7735/mew-notch"
-                        ) {
-                            HStack {
-                                Text("Source Code")
-                                
-                                Spacer()
-                                
-                                Button(
-                                    "View on Github",
-                                    action: {
-                                        openURL(url)
-                                    }
-                                )
-                            }
-                        }
-                    } else if settingsViewModel.didFailToLoadLatestRelease {
-                        Text("Failed to Load")
-                            .multilineTextAlignment(.center)
-                            .frame(maxWidth: .infinity)
-                            .foregroundStyle(.red)
                     }
-                },
-                header: {
-                    HStack {
-                        Text("Latest Release")
-                        
-                        Spacer()
-                        
-                        if settingsViewModel.isLoadingLatestRelease {
-                            Text("000")
-                                .opacity(0)
-                                .overlay {
-                                    ProgressView()
-                                        .scaleEffect(0.5)
-                                        .frame(
-                                            maxWidth: .infinity,
-                                            alignment: .leading
-                                        )
+                    
+                    if let url = URL(
+                        string: "https://github.com/monuk7735/mew-notch"
+                    ) {
+                        HStack {
+                            Text("Source Code")
+                                .font(.system(size: 13, weight: .semibold, design: .rounded))
+                            Spacer()
+                            Button(
+                                "View on GitHub",
+                                action: {
+                                    openURL(url)
                                 }
+                            )
                         }
-                        
-                        Button(
-                            "Check for Updates",
-                            action: settingsViewModel.refreshLatestRelease
-                        )
-                        .disabled(settingsViewModel.isLoadingLatestRelease)
                     }
+                } else if settingsViewModel.didFailToLoadLatestRelease {
+                    Text("Failed to load latest release.")
+                        .foregroundStyle(.red)
+                        .frame(maxWidth: .infinity, alignment: .center)
                 }
-            )
+            }
         }
-        .formStyle(
-            .grouped
-        )
-        .navigationTitle("About")
-        .toolbarTitleDisplayMode(.inline)
     }
 }
 

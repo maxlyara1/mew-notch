@@ -16,6 +16,7 @@ struct MewSettingsView: View {
         
         case General
         case Notch
+        case NeuroFlow
         
         case Brightness
         
@@ -74,6 +75,18 @@ struct MewSettingsView: View {
                                 )
                             }
                             .id(SettingsPages.Notch)
+                            
+                            NavigationLink(
+                                destination: {
+                                    NeuroFlowSettingsView()
+                                }
+                            ) {
+                                Label(
+                                    "Neuro-Flow",
+                                    systemImage: "brain.head.profile"
+                                )
+                            }
+                            .id(SettingsPages.NeuroFlow)
                         }
                     )
                     
@@ -149,6 +162,9 @@ struct MewSettingsView: View {
                     }
                     
                 }
+                .scrollContentBackground(.hidden)
+                .background(SettingsTheme.background)
+                .navigationSplitViewColumnWidth(min: 200, ideal: 240, max: 320)
             },
             detail: {
                 GeneraSettingsView(
@@ -156,6 +172,11 @@ struct MewSettingsView: View {
                 )
             }
         )
+        .scrollContentBackground(.hidden)
+        .background(SettingsTheme.background)
+        .listStyle(.sidebar)
+        .navigationSplitViewStyle(.balanced)
+        .tint(SettingsTheme.accent)
         .task {
             guard let window = NSApp.windows.first(
                 where: {
@@ -167,6 +188,8 @@ struct MewSettingsView: View {
             
             window.toolbarStyle = .unified
             window.styleMask.insert(.resizable)
+            window.minSize = NSSize(width: 760, height: 560)
+            window.setContentSize(NSSize(width: 900, height: 600))
             
             NSApp.activate()
         }

@@ -13,29 +13,36 @@ struct HUDAudioSettingsView: View {
     @StateObject var audioOutputDefaults = HUDAudioOutputDefaults.shared
     
     var body: some View {
-        Form {
-            Section(
-                content: {
-                    Toggle("Enabled", isOn: $audioInputDefaults.isEnabled)
-
-                },
-                header: {
-                    Text("Input")
+        SettingsPage(
+            title: "Audio",
+            subtitle: "Visual feedback for input and output changes."
+        ) {
+            SettingsSection(
+                title: "Input",
+                subtitle: "Microphone level and device changes."
+            ) {
+                SettingsRow(
+                    title: "Enabled",
+                    subtitle: "Show input volume changes."
+                ) {
+                    Toggle("", isOn: $audioInputDefaults.isEnabled)
+                        .labelsHidden()
                 }
-            )
+            }
             
-            Section(
-                content: {
-                    Toggle("Enabled", isOn: $audioOutputDefaults.isEnabled)
-
-                },
-                header: {
-                    Text("Output")
+            SettingsSection(
+                title: "Output",
+                subtitle: "Speaker volume and device changes."
+            ) {
+                SettingsRow(
+                    title: "Enabled",
+                    subtitle: "Show output volume changes."
+                ) {
+                    Toggle("", isOn: $audioOutputDefaults.isEnabled)
+                        .labelsHidden()
                 }
-            )
+            }
         }
-        .formStyle(.grouped)
-        .navigationTitle("Audio")
     }
 }
 

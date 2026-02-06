@@ -16,6 +16,7 @@ struct NotchView: View {
     @StateObject var notchDefaults = NotchDefaults.shared
 
     @StateObject var notchManager = NotchManager.shared
+    @StateObject var neuroFlow = NeuroFlowManager.shared
 
     @StateObject var notchViewModel: NotchViewModel
     @StateObject var collapsedNotchViewModel: CollapsedNotchViewModel = .init()
@@ -46,45 +47,54 @@ struct NotchView: View {
                         collapsedNotchViewModel: collapsedNotchViewModel
                     )
 
-                    ExpandedNotchView(
-                        namespace: namespace,
-                        notchViewModel: notchViewModel,
-                        collapsedNotchView: collapsedNotchView
-                    )
+                    ZStack {
+                        ExpandedNotchView(
+                            namespace: namespace,
+                            notchViewModel: notchViewModel,
+                            collapsedNotchView: collapsedNotchView
+                        )
 
-                    collapsedNotchView
-                }
-                .background {
-                    Color.black
-                }
-                .mask {
-                    NotchShape(
-                        topRadius: notchViewModel.cornerRadius.top,
-                        bottomRadius: notchViewModel.cornerRadius.bottom
+                        collapsedNotchView
+                    }
+                    .background {
+                        if notchViewModel.isExpanded {
+                            NotchShape(
+                                topRadius: notchViewModel.cornerRadius.top,
+                                bottomRadius: notchViewModel.cornerRadius.bottom
+                            )
+                            .fill(Color.black.opacity(0.88))
+                        }
+                    }
+                    .mask {
+                        NotchShape(
+                            topRadius: notchViewModel.cornerRadius.top,
+                            bottomRadius: notchViewModel.cornerRadius.bottom
+                        )
+                    }
+
+                    NotchOutlineView(
+                        notchViewModel: notchViewModel,
+                        isHovered: notchViewModel.isHovered || neuroFlow.isBreakActive
                     )
+                    .allowsHitTesting(false)
+
+                    NeuroFlowNotchOverlayView(
+                        neuroFlow: neuroFlow,
+                        notchViewModel: notchViewModel
+                    )
+                    .allowsHitTesting(false)
                 }
-                .scaleEffect(
-                    notchViewModel.isHovered ? 1.05 : 1.0,
-                    anchor: .top
-                )
-                .shadow(
-                    color: notchViewModel.isHovered ? .black.opacity(0.4) : .clear,
-                    radius: notchViewModel.isHovered ? 16 : 0,
-                    x: 0,
-                    y: notchViewModel.isHovered ? 6 : 0
-                )
-                .animation(
-                    .spring(response: 0.7, dampingFraction: 0.6, blendDuration: 0.2),
-                    value: notchViewModel.isHovered
-                )
                 .onHover {
                     notchViewModel.onHover(
                         $0,
-                        shouldExpand: true
+                        shouldExpand: notchDefaults.expandOnHover && !neuroFlow.isBreakActive
                     )
                 }
                 .onTapGesture(
-                    perform: notchViewModel.onTap
+                    perform: {
+                        guard !neuroFlow.isBreakActive else { return }
+                        notchViewModel.onTap()
+                    }
                 )
                 
                 Spacer()

@@ -16,57 +16,53 @@ struct GeneraSettingsView: View {
     @ObservedObject var settingsViewModel: SettingsViewModel = .init()
     
     var body: some View {
-        Form {
-            Section(
-                content: {
+        SettingsPage(
+            title: "General",
+            subtitle: "Core app behavior and system integration."
+        ) {
+            SettingsSection(
+                title: "App",
+                subtitle: "Startup and menu bar presence."
+            ) {
+                SettingsRow(
+                    title: "Launch at Login",
+                    subtitle: "Start automatically when you sign in."
+                ) {
                     LaunchAtLogin.Toggle()
-                    
-                    Toggle(
-                        isOn: $appDefaults.showMenuIcon
-                    ) {
-                        VStack(
-                            alignment: .leading
-                        ) {
-                            Text("Status Icon")
-                            
-                            Text("Shown in Menu Bar for easy access")
-                                .font(.footnote)
-                        }
-                    }
-                },
-                header: {
-                    Text("App")
+                        .labelsHidden()
                 }
-            )
+                
+                SettingsRow(
+                    title: "Status Icon",
+                    subtitle: "Show MewNotch in the menu bar."
+                ) {
+                    Toggle("", isOn: $appDefaults.showMenuIcon)
+                        .labelsHidden()
+                }
+            }
             
-            Section(
-                content: {
-                    Toggle(
-                        isOn: $appDefaults.disableSystemHUD
-                    ) {
-                        VStack(
-                            alignment: .leading
-                        ) {
-                            Text("Disable system HUD")
+            SettingsSection(
+                title: "System",
+                subtitle: "Control native HUD behavior."
+            ) {
+                SettingsRow(
+                    title: "Disable system HUD",
+                    subtitle: "Use MewNotch as the primary system HUD."
+                ) {
+                    Toggle("", isOn: $appDefaults.disableSystemHUD)
+                        .labelsHidden()
+                        .onChange(
+                            of: appDefaults.disableSystemHUD
+                        ) { _, newValue in
+                            if newValue {
+                                OSDUIManager.shared.stop()
+                            } else {
+                                OSDUIManager.shared.start()
+                            }
                         }
-                    }
-                    .onChange(
-                        of: appDefaults.disableSystemHUD
-                    ) { _, newValue in
-                        if newValue {
-                            OSDUIManager.shared.stop()
-                        } else {
-                            OSDUIManager.shared.start()
-                        }
-                    }
-                },
-                header: {
-                    Text("System")
                 }
-            )
+            }
         }
-        .formStyle(.grouped)
-        .navigationTitle("General")
         .toolbar {
             ToolbarItem(
                 placement: .automatic

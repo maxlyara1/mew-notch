@@ -12,24 +12,31 @@ struct HUDBrightnessSettingsView: View {
     @StateObject var brightnessDefaults = HUDBrightnessDefaults.shared
     
     var body: some View {
-        Form {
-            Section(
-                content: {
-                    Toggle(
-                        "Enabled",
-                        isOn: $brightnessDefaults.isEnabled
-                    )
-
-                    
-                    Toggle(
-                        "Show Auto Brightness Changes",
-                        isOn: $brightnessDefaults.showAutoBrightnessChanges
-                    )
+        SettingsPage(
+            title: "Brightness",
+            subtitle: "Visual feedback for screen brightness changes."
+        ) {
+            SettingsSection(
+                title: "Brightness HUD",
+                subtitle: "Control when the HUD appears."
+            ) {
+                SettingsRow(
+                    title: "Enabled",
+                    subtitle: "Show brightness changes in the notch."
+                ) {
+                    Toggle("", isOn: $brightnessDefaults.isEnabled)
+                        .labelsHidden()
                 }
-            )
+                
+                SettingsRow(
+                    title: "Auto Brightness",
+                    subtitle: "Show changes triggered by ambient light."
+                ) {
+                    Toggle("", isOn: $brightnessDefaults.showAutoBrightnessChanges)
+                        .labelsHidden()
+                }
+            }
         }
-        .formStyle(.grouped)
-        .navigationTitle("Brightness")
     }
 }
 

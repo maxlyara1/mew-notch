@@ -32,6 +32,10 @@ class HUDVideoDefaults: HUDDefaultsProtocol {
     var persistentEdgeOverlay: Bool {
         didSet { withAnimation { self.objectWillChange.send() } }
     }
+    
+    @PrimitiveUserDefault(PREFIX + "FrontmostOnly", defaultValue: true)
+    var frontmostOnly: Bool {
+        didSet { withAnimation { self.objectWillChange.send() } }
+    }
 }
-
 

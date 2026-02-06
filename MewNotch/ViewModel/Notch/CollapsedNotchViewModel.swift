@@ -292,6 +292,11 @@ class CollapsedNotchViewModel: ObservableObject {
         if HUDVideoDefaults.shared.chromiumOnly && !(bundleId.contains(".google.Chrome") || bundleId.lowercased().contains("yandex") || bundleId.lowercased().contains("chromium") || bundleId.lowercased().contains("comet")) {
             return
         }
+        
+        if duration <= 1 {
+            resetVideoState()
+            return
+        }
 
         videoElapsed = elapsed
         videoDuration = duration

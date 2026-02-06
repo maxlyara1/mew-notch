@@ -17,6 +17,8 @@ struct NotchOptionsView: View {
     @Environment(\.openSettings) private var openSettings
     
     @StateObject private var appDefaults = AppDefaults.shared
+    @StateObject private var neuroFlowDefaults = NeuroFlowDefaults.shared
+    @StateObject private var neuroFlow = NeuroFlowManager.shared
     
     var type: OptionsType = .ContextMenu
     
@@ -30,6 +32,23 @@ struct NotchOptionsView: View {
                 OSDUIManager.shared.reset()
             }
         }
+        
+        Divider()
+        
+        Toggle("Neuro-Flow", isOn: $neuroFlowDefaults.isEnabled)
+        
+        Button("Start Break Now") {
+            neuroFlow.startBreakNow()
+        }
+        .disabled(!neuroFlowDefaults.isEnabled)
+        
+        if neuroFlow.isBreakActive {
+            Button("Skip Break") {
+                neuroFlow.skipBreak()
+            }
+        }
+        
+        Divider()
         
         Button("Settings") {
             openSettings()

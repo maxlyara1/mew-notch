@@ -22,9 +22,15 @@ struct NotchSettingsView: View {
     }
     
     var body: some View {
-        Form {
-            Section(
-                content: {
+        SettingsPage(
+            title: "Notch",
+            subtitle: "Where and how the notch behaves."
+        ) {
+            SettingsSection(
+                title: "Displays",
+                subtitle: "Choose where the notch should appear."
+            ) {
+                VStack(alignment: .leading, spacing: 12) {
                     Picker(
                         selection: $notchDefaults.notchDisplayVisibility,
                         content: {
@@ -32,63 +38,63 @@ struct NotchSettingsView: View {
                                 NotchDisplayVisibility.allCases
                             ) { item in
                                 Text(item.displayName)
-                                .tag(item)
+                                    .tag(item)
                             }
                         }
                     ) {
                         Text("Show Notch On")
                     }
+                    .pickerStyle(.segmented)
                     
                     if notchDefaults.notchDisplayVisibility == .Custom {
-                        VStack {
+                        VStack(alignment: .leading, spacing: 12) {
                             HStack {
-                                Text("Choose Displays to show notch on")
+                                Text("Choose Displays")
+                                    .font(.system(size: 13, weight: .semibold, design: .rounded))
                                 Spacer()
                                 Button(
                                     action: {
                                         self.refreshNSScreens()
                                     }
                                 ) {
-                                    Text("Refresh List")
+                                    Text("Refresh")
                                 }
+                                .buttonStyle(.bordered)
+                                .controlSize(.small)
                             }
                             
-                            HStack {
-                                ScrollView(
-                                    .horizontal
+                            ScrollView(
+                                .horizontal
+                            ) {
+                                LazyHStack(
+                                    spacing: 12
                                 ) {
-                                    LazyHStack(
-                                        spacing: 16
-                                    ) {
-                                        ForEach(
-                                            self.screens,
-                                            id: \.self
-                                        ) { screen in
-                                            Text(
-                                                screen.localizedName
-                                            )
-                                            .padding(16)
-                                            .frame(
-                                                minHeight: 100
-                                            )
-                                            .background {
-                                                if notchDefaults.shownOnDisplay[screen.localizedName] == true {
-                                                    Color.gray.opacity(0.5)
-                                                } else {
-                                                    Color.gray.opacity(0.1)
-                                                }
-                                            }
-                                            .clipShape(
-                                                RoundedRectangle(
-                                                    cornerRadius: 16
-                                                )
-                                            )
-                                            .onTapGesture {
-                                                let oldValue = notchDefaults.shownOnDisplay[screen.localizedName] ?? false
-                                                
-                                                withAnimation {
-                                                    notchDefaults.shownOnDisplay[screen.localizedName] = !oldValue
-                                                }
+                                    ForEach(
+                                        self.screens,
+                                        id: \.self
+                                    ) { screen in
+                                        let isSelected = notchDefaults.shownOnDisplay[screen.localizedName] == true
+                                        
+                                        Text(
+                                            screen.localizedName
+                                        )
+                                        .padding(12)
+                                        .frame(
+                                            minHeight: 80
+                                        )
+                                        .background {
+                                            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                                                .fill(isSelected ? SettingsTheme.accent.opacity(0.2) : Color.primary.opacity(0.05))
+                                        }
+                                        .overlay(
+                                            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                                                .stroke(isSelected ? SettingsTheme.accent : Color.primary.opacity(0.08), lineWidth: 1)
+                                        )
+                                        .onTapGesture {
+                                            let oldValue = notchDefaults.shownOnDisplay[screen.localizedName] ?? false
+                                            
+                                            withAnimation {
+                                                notchDefaults.shownOnDisplay[screen.localizedName] = !oldValue
                                             }
                                         }
                                     }
@@ -97,27 +103,31 @@ struct NotchSettingsView: View {
                         }
                     }
                     
-                    Toggle(
-                        isOn: $notchDefaults.shownOnLockScreen
+                    SettingsRow(
+                        title: "Show on Lock Screen",
+                        subtitle: "Keep the notch visible on the lock screen."
                     ) {
-                        Text("Show on Lock Screen")
+                        Toggle("", isOn: $notchDefaults.shownOnLockScreen)
+                            .labelsHidden()
+                            .onChange(
+                                of: notchDefaults.shownOnLockScreen
+                            ) {
+                                NotchManager.shared.refreshNotches(
+                                    killAllWindows: true
+                                )
+                            }
                     }
-                    .onChange(
-                        of: notchDefaults.shownOnLockScreen
-                    ) {
-                        // Kill All Notch to move existing notches out of Lock Screen Space
-                        NotchManager.shared.refreshNotches(
-                            killAllWindows: true
-                        )
-                    }
-                },
-                header: {
-                    Text("Displays")
                 }
-            )
+            }
             
-            Section(
-                content: {
+            SettingsSection(
+                title: "Interface",
+                subtitle: "Shape and size alignment."
+            ) {
+                SettingsRow(
+                    title: "Height",
+                    subtitle: "Match the physical notch or the menu bar."
+                ) {
                     Picker(
                         selection: $notchDefaults.heightMode,
                         content: {
@@ -144,47 +154,36 @@ struct NotchSettingsView: View {
                     ) {
                         Text("Height")
                     }
-                },
-                header: {
-                    Text("Interface")
+                    .pickerStyle(.menu)
                 }
-            )
+            }
             
-            Section(
-                content: {
-                    Toggle(
-                        isOn: $notchDefaults.expandOnHover
-                    ) {
-                        VStack(
-                            alignment: .leading
-                        ) {
-                            Text("Expand on Hover")
-                            
-                            Text("Expand notch when hovered for more than 500ms.\nDisables click interactions in all HUDs")
-                                .font(.footnote)
-                        }
-                    }
-                },
-                header: {
-                    Text("Interaction")
+            SettingsSection(
+                title: "Interaction",
+                subtitle: "Hover and expansion behavior."
+            ) {
+                SettingsRow(
+                    title: "Expand on Hover",
+                    subtitle: "Expand after hovering for quick access."
+                ) {
+                    Toggle("", isOn: $notchDefaults.expandOnHover)
+                        .labelsHidden()
                 }
-            )
+            }
             
-            Section(
-                content: {
-                    Toggle(
-                        isOn: $notchDefaults.showDividers
-                    ) {
-                        Text("Separator between Items")
-                    }
-                },
-                header: {
-                    Text("Expanded Notch")
+            SettingsSection(
+                title: "Expanded Notch",
+                subtitle: "Customize what appears when expanded."
+            ) {
+                SettingsRow(
+                    title: "Show Dividers",
+                    subtitle: "Display separators between expanded items."
+                ) {
+                    Toggle("", isOn: $notchDefaults.showDividers)
+                        .labelsHidden()
                 }
-            )
-            
-            Section(
-                content: {
+                
+                VStack(alignment: .leading, spacing: 8) {
                     ForEach(
                         ExpandedNotchItem.allCases
                     ) { item in
@@ -203,52 +202,12 @@ struct NotchSettingsView: View {
                             Text(item.displayName)
                         }
                     }
-                },
-                header: {
-                    Text("Expanded Notch Items")
                 }
-            )
-
-            Section(
-                content: {
-                    Toggle(
-                        isOn: $notchDefaults.showClipboardBuffer
-                    ) {
-                        VStack(
-                            alignment: .leading
-                        ) {
-                            Text("Clipboard Buffer")
-
-                            Text("Show a buffer for up to 3 images with drag-and-drop support")
-                                .font(.footnote)
-                        }
-                    }
-                },
-                header: {
-                    Text("Clipboard Buffer")
-                }
-            )
-        }
-        .formStyle(.grouped)
-        .navigationTitle("Notch")
-        .toolbarTitleDisplayMode(.inline)
-        .onChange(
-            of: notchDefaults.notchDisplayVisibility
-        ) {
-            NotchManager.shared.refreshNotches()
-        }
-        .onChange(
-            of: notchDefaults.shownOnDisplay
-        ) {
-            NotchManager.shared.refreshNotches()
-        }
-        .onChange(
-            of: scenePhase
-        ) {
-            self.refreshNSScreens()
+                .padding(.top, 4)
+            }
         }
         .onAppear {
-            self.refreshNSScreens()
+            refreshNSScreens()
         }
     }
 }

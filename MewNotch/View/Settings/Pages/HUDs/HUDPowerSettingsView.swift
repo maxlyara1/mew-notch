@@ -12,26 +12,23 @@ struct HUDPowerSettingsView: View {
     @StateObject var powerDefaults = HUDPowerDefaults.shared
     
     var body: some View {
-        Form {
-            Section(
-                content: {
-                    Toggle(
-                        isOn: $powerDefaults.isEnabled
-                    ) {
-                        VStack(
-                            alignment: .leading
-                        ) {
-                            Text("Enabled")
-                            
-                            Text("Shows power state when plugged in/out")
-                                .font(.footnote)
-                        }
-                    }
+        SettingsPage(
+            title: "Power",
+            subtitle: "Battery and power-source changes."
+        ) {
+            SettingsSection(
+                title: "Power HUD",
+                subtitle: "Show charging and battery status."
+            ) {
+                SettingsRow(
+                    title: "Enabled",
+                    subtitle: "Display changes when plugging in or unplugging."
+                ) {
+                    Toggle("", isOn: $powerDefaults.isEnabled)
+                        .labelsHidden()
                 }
-            )
+            }
         }
-        .formStyle(.grouped)
-        .navigationTitle("Power")
     }
 }
 
