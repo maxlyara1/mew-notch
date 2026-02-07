@@ -111,6 +111,6 @@ struct NotchView: View {
     }
 
     private var shouldHideOnLock: Bool {
-        notchManager.isScreenLocked && !notchDefaults.shownOnLockScreen
+        notchManager.isScreenLocked
     }
 }

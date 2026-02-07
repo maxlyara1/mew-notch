@@ -37,7 +37,7 @@ class NotchDefaults: ObservableObject {
     
     @PrimitiveUserDefault(
         PREFIX + "ShownOnLockScreen",
-        defaultValue: true
+        defaultValue: false
     )
     var shownOnLockScreen: Bool {
         didSet {

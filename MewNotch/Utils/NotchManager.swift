@@ -90,11 +90,7 @@ class NotchManager: ObservableObject {
             
             windows[screen] = panel
             
-            if notchDefaults.shownOnLockScreen {
-                WindowManager.shared?.moveToLockScreen(panel)
-            } else {
-                NotchSpaceManager.shared.notchSpace.windows.insert(panel)
-            }
+            NotchSpaceManager.shared.notchSpace.windows.insert(panel)
         }
     }
     
@@ -171,9 +167,7 @@ class NotchManager: ObservableObject {
             self.unlockTimer?.invalidate()
             self.isRefreshing = false
 
-            if !self.notchDefaults.shownOnLockScreen {
-                self.hideAllNotches()
-            }
+            self.hideAllNotches()
         }
     }
 

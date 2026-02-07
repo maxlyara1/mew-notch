@@ -18,16 +18,18 @@ struct MenuBarPanelView: View {
 
     var body: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 16) {
-                heroCard
+            VStack(alignment: .leading, spacing: 18) {
+                headerCard
+                sessionCard
                 timingSection
                 visualsSection
+                mediaSection
                 appSection
             }
             .padding(18)
         }
         .scrollContentBackground(.hidden)
-        .frame(minWidth: 340, idealWidth: 380, minHeight: 440, idealHeight: 560)
+        .frame(minWidth: 360, idealWidth: 420, minHeight: 480, idealHeight: 640)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .background(SettingsTheme.background)
         .background(MenuBarPanelWindowConfigurator(didConfigure: $didConfigureWindow))
@@ -45,7 +47,7 @@ struct MenuBarPanelView: View {
         )
     }
 
-    private var heroCard: some View {
+    private var headerCard: some View {
         ZStack(alignment: .topLeading) {
             RoundedRectangle(cornerRadius: 20, style: .continuous)
                 .fill(SettingsTheme.cardFill)
@@ -64,14 +66,27 @@ struct MenuBarPanelView: View {
                 )
                 .overlay(
                     RoundedRectangle(cornerRadius: 20, style: .continuous)
-                        .stroke(Color.white.opacity(0.16), lineWidth: 1)
+                        .stroke(Color.white.opacity(0.14), lineWidth: 1)
                 )
                 .overlay(
                     Circle()
                         .fill(SettingsTheme.accent.opacity(0.32))
-                        .frame(width: 180, height: 180)
-                        .blur(radius: 30)
-                        .offset(x: 140, y: -120)
+                        .frame(width: 200, height: 200)
+                        .blur(radius: 36)
+                        .offset(x: 150, y: -130)
+                )
+                .overlay(
+                    RoundedRectangle(cornerRadius: 20, style: .continuous)
+                        .fill(
+                            LinearGradient(
+                                colors: [
+                                    Color.white.opacity(0.18),
+                                    Color.clear
+                                ],
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            )
+                        )
                 )
 
             VStack(alignment: .leading, spacing: 12) {
@@ -111,6 +126,60 @@ struct MenuBarPanelView: View {
                         color: SettingsTheme.accent
                     )
                 }
+            }
+            .padding(16)
+        }
+    }
+
+    private var sessionCard: some View {
+        let isBreak = neuroFlow.isBreakActive
+        let accent = neuroFlowDefaults.accentColor.color
+        let remaining = isBreak ? neuroFlow.breakRemaining : focusRemaining
+        let progress = sessionProgress
+
+        return ZStack(alignment: .topLeading) {
+            RoundedRectangle(cornerRadius: 18, style: .continuous)
+                .fill(SettingsTheme.cardFill)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 18, style: .continuous)
+                        .stroke(SettingsTheme.cardStroke, lineWidth: 1)
+                )
+                .overlay(
+                    RoundedRectangle(cornerRadius: 18, style: .continuous)
+                        .fill(
+                            LinearGradient(
+                                colors: [
+                                    accent.opacity(0.16),
+                                    Color.clear
+                                ],
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            )
+                        )
+                )
+
+            VStack(alignment: .leading, spacing: 12) {
+                HStack(spacing: 10) {
+                    Text(isBreak ? "BREAK" : "FOCUS")
+                        .font(.system(size: 11, weight: .semibold, design: .rounded))
+                        .foregroundStyle(.secondary)
+                        .tracking(1.1)
+                    Spacer()
+                    Text(isBreak ? "Breathe & let it settle" : "Next pause soon")
+                        .font(SettingsTheme.secondaryFont)
+                        .foregroundStyle(.secondary)
+                }
+
+                HStack(alignment: .lastTextBaseline, spacing: 10) {
+                    Text(timeString(remaining))
+                        .font(.system(size: 30, weight: .semibold, design: .rounded))
+                    Text(isBreak ? "left" : "to break")
+                        .font(SettingsTheme.secondaryFont)
+                        .foregroundStyle(.secondary)
+                }
+
+                NeuroFlowProgressBar(progress: progress, accent: accent)
+                    .frame(height: 12)
 
                 HStack(spacing: 10) {
                     Button {
@@ -119,7 +188,7 @@ struct MenuBarPanelView: View {
                         Label("Start break", systemImage: "sparkles")
                     }
                     .buttonStyle(.borderedProminent)
-                    .tint(SettingsTheme.accent)
+                    .tint(accent)
                     .disabled(!neuroFlowDefaults.isEnabled)
 
                     if neuroFlow.isBreakActive {
@@ -191,10 +260,17 @@ struct MenuBarPanelView: View {
                 Toggle("", isOn: $neuroFlowDefaults.playBreakSound)
                     .labelsHidden()
             }
+        }
+    }
 
+    private var mediaSection: some View {
+        SettingsSection(
+            title: "Media",
+            subtitle: "Optionally pause audio/video during a break."
+        ) {
             SettingsRow(
                 title: "Pause media",
-                subtitle: "Pause audio/video during a break."
+                subtitle: "Send a system pause on break start."
             ) {
                 Toggle("", isOn: $neuroFlowDefaults.pauseMediaDuringBreak)
                     .labelsHidden()
@@ -202,7 +278,7 @@ struct MenuBarPanelView: View {
 
             SettingsRow(
                 title: "Resume after",
-                subtitle: "Resume media when break ends."
+                subtitle: "Play again when the break ends."
             ) {
                 Toggle("", isOn: $neuroFlowDefaults.resumeMediaAfterBreak)
                     .labelsHidden()
@@ -247,6 +323,30 @@ struct MenuBarPanelView: View {
             }
         }
     }
+
+    private var focusRemaining: TimeInterval {
+        let target = TimeInterval(neuroFlowDefaults.focusMinutes * 60)
+        return max(0, target - neuroFlow.focusElapsed)
+    }
+
+    private var sessionProgress: Double {
+        if neuroFlow.isBreakActive {
+            return max(0, min(1, 1 - neuroFlow.breakProgress))
+        }
+        return neuroFlow.focusProgress
+    }
+
+    private func timeString(_ seconds: TimeInterval) -> String {
+        let total = max(0, Int(seconds.rounded()))
+        let mins = total / 60
+        let secs = total % 60
+        if mins >= 60 {
+            let hours = mins / 60
+            let rem = mins % 60
+            return String(format: "%d:%02d:%02d", hours, rem, secs)
+        }
+        return String(format: "%d:%02d", mins, secs)
+    }
 }
 
 private struct MenuChip: View {
@@ -269,6 +369,34 @@ private struct MenuChip: View {
                 .stroke(Color.primary.opacity(0.12), lineWidth: 1)
         )
         .clipShape(Capsule())
+    }
+}
+
+private struct NeuroFlowProgressBar: View {
+    let progress: Double
+    let accent: Color
+
+    var body: some View {
+        GeometryReader { proxy in
+            let width = max(8, proxy.size.width * CGFloat(progress))
+            ZStack(alignment: .leading) {
+                Capsule()
+                    .fill(Color.white.opacity(0.08))
+                Capsule()
+                    .fill(
+                        LinearGradient(
+                            colors: [
+                                accent.opacity(0.9),
+                                accent.opacity(0.45)
+                            ],
+                            startPoint: .leading,
+                            endPoint: .trailing
+                        )
+                    )
+                    .frame(width: width)
+                    .shadow(color: accent.opacity(0.5), radius: 8, x: 0, y: 0)
+            }
+        }
     }
 }
 

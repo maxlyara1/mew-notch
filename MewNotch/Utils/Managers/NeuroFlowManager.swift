@@ -114,6 +114,18 @@ final class NeuroFlowManager: ObservableObject {
     private func tick() {
         let defaults = NeuroFlowDefaults.shared
         isEnabled = defaults.isEnabled
+
+        if NotchManager.shared.isScreenLocked {
+            if state == .break {
+                cancelBreakForLock()
+            } else {
+                focusElapsed = 0
+                breakRemaining = 0
+                activeBreakDuration = 0
+            }
+            lastTick = Date()
+            return
+        }
         
         guard isEnabled else {
             resetAll()
@@ -174,6 +186,14 @@ final class NeuroFlowManager: ObservableObject {
         focusElapsed = 0
         breakRemaining = 0
         activeBreakDuration = 0
+    }
+
+    private func cancelBreakForLock() {
+        state = .focus
+        focusElapsed = 0
+        breakRemaining = 0
+        activeBreakDuration = 0
+        pausedMediaForBreak = false
     }
 
     private func playBreakSoundIfNeeded() {

@@ -103,20 +103,6 @@ struct NotchSettingsView: View {
                         }
                     }
                     
-                    SettingsRow(
-                        title: "Show on Lock Screen",
-                        subtitle: "Keep the notch visible on the lock screen."
-                    ) {
-                        Toggle("", isOn: $notchDefaults.shownOnLockScreen)
-                            .labelsHidden()
-                            .onChange(
-                                of: notchDefaults.shownOnLockScreen
-                            ) {
-                                NotchManager.shared.refreshNotches(
-                                    killAllWindows: true
-                                )
-                            }
-                    }
                 }
             }
             
